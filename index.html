@@ -235,16 +235,20 @@
         let pendingCount = 0;
         let pendingTotal = 0;
 
-        // Looking at your sheet, rows 5 through 10 and 15, 18-24 are your green pending items.
-        // Let's flag items that are pending based on your list order or specific keywords if needed. 
-        // For your workflow, let's sum up the top active un-cleared items into your pending float.
-        entries.forEach((item, index) => {
-            // Adjust condition: items without an 'x' in status or top active items
-            const isPending = item.status !== 'x'; 
+        entries.forEach(item => {
+            // A transaction is pending if it does NOT have an 'x' in the status column (Column D)
+            const isPending = !item.status || item.status.toLowerCase() !== 'x';
 
-            if (isPending && item.amount) {
+            const amt = parseFloat(item.amount || 0);
+
+            if (isPending) {
                 pendingCount++;
-                pendingTotal += parseFloat(item.amount);
+                // If it's a deposit, it adds to your bank balance; if it's a withdrawal, it subtracts
+                if (item.type === 'deposit') {
+                    pendingTotal += amt;
+                } else {
+                    pendingTotal -= amt;
+                }
             }
 
             const div = document.createElement('div');
