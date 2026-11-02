@@ -218,12 +218,12 @@
                     allEntries = data.entries || [];
                     renderLedger(allEntries);
                 } else {
-                    document.getElementById('ledgerList').innerHTML = '<div style="text-align:center; color:#ff6b6b; padding:10px;">Failed to load history</div>';
+                    document.getElementById('ledgerList').innerHTML = `<div style="text-align:center; color:#ff6b6b; padding:10px;">Error: ${data.message || 'Unknown error'}</div>`;
                 }
             })
             .catch(err => {
                 console.error(err);
-                document.getElementById('ledgerList').innerHTML = '<div style="text-align:center; color:#ff6b6b; padding:10px;">Connection error</div>';
+                document.getElementById('ledgerList').innerHTML = `<div style="text-align:center; color:#ff6b6b; padding:10px;">Fetch Failed: ${err.message}</div>`;
             });
     }
 
