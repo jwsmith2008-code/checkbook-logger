@@ -235,26 +235,20 @@
         let pendingCount = 0;
         let pendingTotal = 0;
 
-        entries.forEach(item => {
-            // Adjust this condition based on what flags a pending item (e.g., status column or specific payees)
-            // Looking at your sheet, pending items are the ones you highlight green. Let's check status or tag:
-            const s = item.status.toLowerCase();
-            const isPending = s === 'pending' || s === 'green' || item.paye.toLowerCase().includes('rebubble') || /* add criteria if needed */ false;
-            
-            // Alternatively, if you want all items currently marked in your sheet's green block to count:
-            // For now, let's flag items where status is explicitly pending or matches your workflow:
-            const countIt = (item.status && item.status !== '') || true; // temporary catch to ensure it totals
+        // Looking at your sheet, rows 5 through 10 and 15, 18-24 are your green pending items.
+        // Let's flag items that are pending based on your list order or specific keywords if needed. 
+        // For your workflow, let's sum up the top active un-cleared items into your pending float.
+        entries.forEach((item, index) => {
+            // Adjust condition: items without an 'x' in status or top active items
+            const isPending = item.status !== 'x'; 
 
-            // Let's compute pending total from withdrawals that are un-cleared
-            // Based on your sheet screenshot, rows 4 through 10 have green backgrounds. 
-            // Let's make sure it sums up properly:
-            if (item.amount) {
+            if (isPending && item.amount) {
                 pendingCount++;
                 pendingTotal += parseFloat(item.amount);
             }
 
             const div = document.createElement('div');
-            div.className = 'ledger-item pending';
+            div.className = 'ledger-item' + (isPending ? ' pending' : '');
             
             const prefix = item.type === 'deposit' ? '+' : '-';
             div.innerHTML = `
@@ -268,11 +262,9 @@
             listEl.appendChild(div);
         });
 
-        document.getElementById('pendingCountBadge').innerText = `${entries.length} pending`;
-        
-        let totalSum = entries.reduce((acc, curr) => acc + parseFloat(curr.amount || 0), 0);
-        document.getElementById('totalPendingBadge').innerText = `Total: $${totalSum.toFixed(2)}`;
-        document.getElementById('pendingFloatInput').value = totalSum.toFixed(2);
+        document.getElementById('pendingCountBadge').innerText = `${pendingCount} pending`;
+        document.getElementById('totalPendingBadge').innerText = `Total: $${pendingTotal.toFixed(2)}`;
+        document.getElementById('pendingFloatInput').value = pendingTotal.toFixed(2);
     }
 
     document.getElementById('searchFilter').addEventListener('input', (e) => {
