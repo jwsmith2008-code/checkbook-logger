@@ -74,13 +74,61 @@
         button:hover {
             background-color: #985eff;
         }
-        #status-message {
-            margin-top: 16px;
+        .recon-box, .recent-box {
+            margin-top: 20px;
+            padding: 16px;
+            background: #252525;
+            border-radius: 8px;
+            border: 1px solid #333;
+        }
+        .recon-box h3, .recent-box h3 {
+            margin-top: 0;
+            font-size: 1rem;
+            color: #bb86fc;
+            margin-bottom: 10px;
+        }
+        .recon-summary {
+            font-size: 0.85rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 10px;
+            padding-bottom: 8px;
+            border-bottom: 1px solid #333;
+        }
+        .badge { padding: 2px 6px; border-radius: 4px; font-weight: bold; }
+        .count-badge { background-color: #333; color: #aaa; }
+        .warning-badge { background-color: #cf6679; color: #121212; }
+
+        .recent-scroll {
+            max-height: 200px;
+            overflow-y: auto;
+            border-top: 1px solid #333;
+            margin-top: 8px;
+            padding-top: 4px;
+        }
+        .recent-item {
+            font-size: 0.85rem;
+            padding: 6px 4px;
+            border-bottom: 1px solid #2a2a2a;
+            display: flex;
+            justify-content: space-between;
+        }
+        .recent-item.pending-highlight {
+            background-color: rgba(255, 255, 0, 0.15);
+            border-left: 4px solid yellow;
+        }
+        .recent-item.cleared { opacity: 0.7; }
+        
+        #status-message, #recon-message {
+            margin-top: 12px;
             text-align: center;
             font-size: 0.9rem;
+            padding: 8px;
+            border-radius: 6px;
         }
-        .success { color: #03dac6; }
-        .error { color: #cf6679; }
+        .success { color: #03dac6; background: rgba(3, 218, 198, 0.1); }
+        .warning { color: #cf6679; background: rgba(207, 102, 121, 0.1); }
     </style>
 </head>
 <body>
@@ -132,14 +180,150 @@
         <button type="submit" id="submitBtn">Log Transaction</button>
     </form>
     <div id="status-message"></div>
+
+    <div class="recent-box">
+        <h3>👀 Ledger Monitor (Last 75)</h3>
+        <div class="recon-summary">
+            <span>Status Summary:</span>
+            <span id="pendingCount" class="badge count-badge">0 pending</span>
+            <span id="pendingTotal" class="badge count-badge">Total $0.00</span>
+        </div>
+        <input type="text" id="searchFilter" placeholder="Filter by payee..." style="padding: 8px; font-size: 0.85rem; margin-bottom: 8px;">
+        <div class="recent-scroll" id="recentList">
+            <div style="color: #aaa; font-size: 0.85rem; text-align: center;">Loading history...</div>
+        </div>
+    </div>
+
+    <div class="recon-box">
+        <h3>🔍 Members 1st Quick Verify</h3>
+        <div class="form-group" style="margin-bottom: 8px;">
+            <label for="bankBalance">Current Bank Overall Balance ($)</label>
+            <input type="number" id="bankBalance" step="0.01" placeholder="e.g. 2814.50">
+        </div>
+        <div class="form-group" style="margin-bottom: 8px;">
+            <label for="sheetBalance">Latest Sheet Balance ($)</label>
+            <input type="number" id="sheetBalance" step="0.01" placeholder="e.g. 714.51">
+        </div>
+        <div class="form-group" style="margin-bottom: 0;">
+            <label for="pendingFloat">Total Green Pending Float ($)</label>
+            <input type="number" id="pendingFloat" step="0.01" placeholder="e.g. 2100.00">
+        </div>
+        <div id="recon-message"></div>
+    </div>
 </div>
 
 <script>
-    // Auto-populate today's date on load
     document.getElementById('date').valueAsDate = new Date();
-
-    // CONNECTED TO YOUR CHECKBOOK WEB APP
     const WEB_APP_URL = "https://script.google.com/macros/s/AKfycbxMD7Pnri1ZQZx-gZ56IP1xox56jKaeroV9jSpnoU1TXNHZEYvVOgVhLTLlXhle4Ihu/exec";
+
+    let allEntries = [];
+
+    async function loadRecentEntries() {
+        try {
+            const response = await fetch(WEB_APP_URL + "?action=recent");
+            const data = await response.json();
+            
+            if (data.status === 'success' && data.entries.length > 0) {
+                allEntries = data.entries;
+                renderEntries(allEntries);
+                updateSummary(allEntries);
+            } else {
+                document.getElementById('recentList').innerHTML = '<div style="color: #aaa; font-size: 0.85rem; text-align: center;">No history found.</div>';
+            }
+        } catch (err) {
+            console.error(err);
+            document.getElementById('recentList').innerHTML = '<div style="color: #cf6679; font-size: 0.85rem; text-align: center;">Could not load history.</div>';
+        }
+    }
+
+    function renderEntries(entries) {
+        const listContainer = document.getElementById('recentList');
+        listContainer.innerHTML = '';
+        
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+
+        entries.forEach(item => {
+            const div = document.createElement('div');
+            const sign = item.type === 'deposit' ? '+' : '-';
+            const color = item.type === 'deposit' ? '#03dac6' : '#e0e0e0';
+            
+            let itemClasses = 'recent-item';
+            if (item.status === 'x') {
+                itemClasses += ' cleared';
+            } else {
+                const itemDate = new Date(item.date);
+                if (itemDate < today) {
+                    itemClasses += ' pending-highlight';
+                }
+            }
+            div.className = itemClasses;
+            
+            div.innerHTML = `
+                <span><b>${item.paye}</b> <span style="color:#777; font-size:0.75rem;">(${item.date})</span></span> 
+                <span style="color:${color}">${sign}$${item.amount}</span>
+            `;
+            listContainer.appendChild(div);
+        });
+    }
+
+    function updateSummary(entries) {
+        const pendingItems = entries.filter(item => item.status !== 'x');
+        const count = pendingItems.length;
+        const total = pendingItems.reduce((sum, item) => {
+            const amt = parseFloat(item.amount) || 0;
+            return item.type === 'deposit' ? sum + amt : sum - amt;
+        }, 0);
+
+        const countEl = document.getElementById('pendingCount');
+        const totalEl = document.getElementById('pendingTotal');
+        
+        countEl.textContent = `${count} pending`;
+        totalEl.textContent = `Total: ${total.toLocaleString('en-US', { style: 'currency', currency: 'USD' })}`;
+        
+        if (count > 0) {
+            countEl.className = 'badge warning-badge';
+            totalEl.className = 'badge warning-badge';
+        } else {
+            countEl.className = 'badge count-badge';
+            totalEl.className = 'badge count-badge';
+        }
+    }
+
+    document.getElementById('searchFilter').addEventListener('input', function(e) {
+        const query = e.target.value.toLowerCase();
+        const filtered = allEntries.filter(item => item.paye.toLowerCase().includes(query));
+        renderEntries(filtered);
+    });
+
+    function checkBalanceMatch() {
+        const bank = parseFloat(document.getElementById('bankBalance').value) || 0;
+        const sheet = parseFloat(document.getElementById('sheetBalance').value) || 0;
+        const pending = parseFloat(document.getElementById('pendingFloat').value) || 0;
+        const msg = document.getElementById('recon-message');
+
+        if (!document.getElementById('bankBalance').value) {
+            msg.textContent = "";
+            msg.className = "";
+            return;
+        }
+
+        const diff = Math.abs((bank - pending) - sheet);
+
+        if (diff < 0.02) {
+            msg.textContent = "balanced :)";
+            msg.className = "success";
+        } else {
+            msg.textContent = "⚠️ Discrepancy found — go look at it or further calculations needed.";
+            msg.className = "warning";
+        }
+    }
+
+    ['bankBalance', 'sheetBalance', 'pendingFloat'].forEach(id => {
+        document.getElementById(id).addEventListener('input', checkBalanceMatch);
+    });
+
+    loadRecentEntries();
 
     document.getElementById('checkbookForm').addEventListener('submit', async function(e) {
         e.preventDefault();
@@ -173,6 +357,7 @@
                 document.getElementById('amount').value = '';
                 document.getElementById('category').value = '';
                 document.getElementById('date').valueAsDate = new Date();
+                loadRecentEntries(); 
             } else {
                 throw new Error(result.message || "Unknown error");
             }
