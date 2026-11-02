@@ -1,0 +1,190 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Smith Family Checkbook Logger</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            background-color: #121212;
+            color: #e0e0e0;
+            margin: 0;
+            padding: 20px;
+            display: flex;
+            justify-content: center;
+        }
+        .container {
+            width: 100%;
+            max-width: 480px;
+            background: #1e1e1e;
+            padding: 24px;
+            border-radius: 12px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.5);
+        }
+        h2 {
+            margin-top: 0;
+            color: #ffffff;
+            text-align: center;
+            font-size: 1.4rem;
+        }
+        .form-group {
+            margin-bottom: 16px;
+        }
+        label {
+            display: block;
+            margin-bottom: 6px;
+            font-size: 0.9rem;
+            color: #b0b0b0;
+        }
+        input, select, textarea {
+            width: 100%;
+            padding: 12px;
+            background: #2a2a2a;
+            border: 1px solid #404040;
+            border-radius: 8px;
+            color: #ffffff;
+            font-size: 1rem;
+            box-sizing: border-box;
+        }
+        input:focus, select:focus {
+            outline: none;
+            border-color: #6200ee;
+        }
+        .row {
+            display: flex;
+            gap: 12px;
+        }
+        .row .form-group {
+            flex: 1;
+        }
+        button {
+            width: 100%;
+            padding: 14px;
+            background-color: #bb86fc;
+            color: #121212;
+            border: none;
+            border-radius: 8px;
+            font-size: 1rem;
+            font-weight: bold;
+            cursor: pointer;
+            transition: background 0.2s;
+            margin-top: 10px;
+        }
+        button:hover {
+            background-color: #985eff;
+        }
+        #status-message {
+            margin-top: 16px;
+            text-align: center;
+            font-size: 0.9rem;
+        }
+        .success { color: #03dac6; }
+        .error { color: #cf6679; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h2>☕ Morning Checkbook</h2>
+    <form id="checkbookForm">
+        <div class="form-group">
+            <label for="date">Date</label>
+            <input type="date" id="date" required>
+        </div>
+
+        <div class="form-group">
+            <label for="payee">Payee / Description</label>
+            <input type="text" id="payee" placeholder="e.g. weis, amazon, xfer to mortgage" required>
+        </div>
+
+        <div class="row">
+            <div class="form-group">
+                <label for="amount">Amount ($)</label>
+                <input type="number" id="amount" step="0.01" placeholder="0.00" required>
+            </div>
+            <div class="form-group">
+                <label for="type">Type</label>
+                <select id="type">
+                    <option value="withdrawal">Withdrawal (-)</option>
+                    <option value="deposit">Deposit (+)</option>
+                </select>
+            </div>
+        </div>
+
+        <div class="form-group">
+            <label for="category">Category</label>
+            <input type="text" id="category" placeholder="e.g. groceries, coverage, etc.">
+        </div>
+
+        <div class="form-group">
+            <label for="status">Status Tag / Color Coding</label>
+            <select id="status">
+                <option value="normal">Normal / Cleared (White)</option>
+                <option value="pending">🟢 Pending (Lime Green)</option>
+                <option value="transfer">🟫 Internal Transfer (Red/Brown)</option>
+                <option value="replenish">🟣 Need to Replenish / PLOC (Purple)</option>
+                <option value="work">🔵 Work Expense / Reimbursable (Sky Blue)</option>
+                <option value="cleared">✅ Mark Cleared ('x')</option>
+            </select>
+        </div>
+
+        <button type="submit" id="submitBtn">Log Transaction</button>
+    </form>
+    <div id="status-message"></div>
+</div>
+
+<script>
+    // Auto-populate today's date on load
+    document.getElementById('date').valueAsDate = new Date();
+
+    // CONNECTED TO YOUR CHECKBOOK WEB APP
+    const WEB_APP_URL = "https://script.google.com/macros/s/AKfycbxMD7Pnri1ZQZx-gZ56IP1xox56jKaeroV9jSpnoU1TXNHZEYvVOgVhLTLlXhle4Ihu/exec";
+
+    document.getElementById('checkbookForm').addEventListener('submit', async function(e) {
+        e.preventDefault();
+        const btn = document.getElementById('submitBtn');
+        const msg = document.getElementById('status-message');
+        
+        btn.disabled = true;
+        btn.textContent = "Logging...";
+        msg.textContent = "";
+
+        const payload = {
+            date: document.getElementById('date').value,
+            payee: document.getElementById('payee').value,
+            amount: document.getElementById('amount').value,
+            type: document.getElementById('type').value,
+            category: document.getElementById('category').value,
+            status: document.getElementById('status').value
+        };
+
+        try {
+            const response = await fetch(WEB_APP_URL, {
+                method: 'POST',
+                body: JSON.stringify(payload)
+            });
+            const result = await response.json();
+            
+            if (result.status === 'success') {
+                msg.textContent = "Successfully logged to checkbook! 🎉";
+                msg.className = "success";
+                document.getElementById('payee').value = '';
+                document.getElementById('amount').value = '';
+                document.getElementById('category').value = '';
+                document.getElementById('date').valueAsDate = new Date();
+            } else {
+                throw new Error(result.message || "Unknown error");
+            }
+        } catch (err) {
+            msg.textContent = "Error: " + err.message;
+            msg.className = "error";
+        } finally {
+            btn.disabled = false;
+            btn.textContent = "Log Transaction";
+        }
+    });
+</script>
+
+</body>
+</html>
