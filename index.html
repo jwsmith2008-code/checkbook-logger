@@ -231,19 +231,32 @@
             listEl.innerHTML = '<div style="text-align: center; color: #777; padding: 20px;">No history found.</div>';
             return;
         }
+    functon markAsCleared(rowIndex) {
+    if (!confirm("Mark this transaction as cleared (x)?")) return;
 
+    fetch(WEB_APP_URL, {
+        method: 'POST',
+        body: JSON.stringify({ action: 'clear', rowIndex: rowIndex })
+    })
+    .then(res => res.json())
+    .then(response => {
+        if (response.status === 'success') {
+            loadLedger(); // Refresh monitor instantly
+        } else {
+            alert('Could not clear transaction.');
+        }
+    })
+    .catch(err => console.error(err));
+}
         let pendingCount = 0;
         let pendingTotal = 0;
 
-        entries.forEach(item => {
-            // A transaction is pending if it does NOT have an 'x' in the status column (Column D)
+       entries.forEach((item, index) => {
             const isPending = !item.status || item.status.toLowerCase() !== 'x';
-
             const amt = parseFloat(item.amount || 0);
 
             if (isPending) {
                 pendingCount++;
-                // If it's a deposit, it adds to your bank balance; if it's a withdrawal, it subtracts
                 if (item.type === 'deposit') {
                     pendingTotal += amt;
                 } else {
@@ -253,6 +266,13 @@
 
             const div = document.createElement('div');
             div.className = 'ledger-item' + (isPending ? ' pending' : '');
+            div.style.cursor = isPending ? 'pointer' : 'default';
+            div.title = isPending ? 'Click to mark as cleared (x)' : 'Already cleared';
+
+            // If it's pending, let clicking it clear it!
+            if (isPending) {
+                div.onclick = () => markAsCleared(item.rowIndex);
+            }
             
             const prefix = item.type === 'deposit' ? '+' : '-';
             div.innerHTML = `
@@ -260,7 +280,7 @@
                     <strong>${item.paye}</strong> <span style="font-size:11px; color:#888;">(${item.date})</span>
                 </div>
                 <div style="color: ${item.type === 'deposit' ? '#81c784' : '#e0e0e0'}">
-                    ${prefix}$${item.amount}
+                    ${prefix}$${item.amount} ${isPending ? ' <span style="font-size:10px; color:#a5d6a7;">[Click to Clear]</span>' : ''}
                 </div>
             `;
             listEl.appendChild(div);
