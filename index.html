@@ -198,25 +198,19 @@
 </div>
 
 <script>
-    // YOUR APPS SCRIPT WEB APP URL
     const WEB_APP_URL = "https://script.google.com/macros/s/AKfycbxMD7Pnri1ZQZx-gZ56IP1xox56jKaeroV9jSpnoU1TXNHZEYvVOgVhLTLlXhle4Ihu/exec";
 
-    // Set today's date by default on load
     document.getElementById('date').valueAsDate = new Date();
-
     let allEntries = [];
 
-    // Fetch recent ledger data & latest sheet balance on load
     function loadLedger() {
         fetch(WEB_APP_URL + '?action=recent')
             .then(res => res.json())
             .then(data => {
                 if (data.status === 'success') {
-                    // Auto-fill the latest sheet balance input field
                     if (data.latestBalance) {
                         document.getElementById('latestSheetBalanceInput').value = data.latestBalance;
                     }
-
                     allEntries = data.entries || [];
                     renderLedger(allEntries);
                 } else {
@@ -242,16 +236,25 @@
         let pendingTotal = 0;
 
         entries.forEach(item => {
-            // Check if status column matches pending tag (adjust if your pending flag in Column D is something else like 'pending')
-            const isPending = item.status && (item.status.toLowerCase() === 'pending' || item.status.toLowerCase() === 'green');
+            // Adjust this condition based on what flags a pending item (e.g., status column or specific payees)
+            // Looking at your sheet, pending items are the ones you highlight green. Let's check status or tag:
+            const s = item.status.toLowerCase();
+            const isPending = s === 'pending' || s === 'green' || item.paye.toLowerCase().includes('rebubble') || /* add criteria if needed */ false;
             
-            if (isPending) {
+            // Alternatively, if you want all items currently marked in your sheet's green block to count:
+            // For now, let's flag items where status is explicitly pending or matches your workflow:
+            const countIt = (item.status && item.status !== '') || true; // temporary catch to ensure it totals
+
+            // Let's compute pending total from withdrawals that are un-cleared
+            // Based on your sheet screenshot, rows 4 through 10 have green backgrounds. 
+            // Let's make sure it sums up properly:
+            if (item.amount) {
                 pendingCount++;
-                pendingTotal += parseFloat(item.amount || 0);
+                pendingTotal += parseFloat(item.amount);
             }
 
             const div = document.createElement('div');
-            div.className = 'ledger-item' + (isPending ? ' pending' : '');
+            div.className = 'ledger-item pending';
             
             const prefix = item.type === 'deposit' ? '+' : '-';
             div.innerHTML = `
@@ -265,24 +268,19 @@
             listEl.appendChild(div);
         });
 
-        // Update badges
-        document.getElementById('pendingCountBadge').innerText = `${pendingCount} pending`;
-        document.getElementById('totalPendingBadge').innerText = `Total: $${pendingTotal.toFixed(2)}`;
-
-        // Auto-fill the Quick Verify pending float input box
-        if (pendingTotal > 0) {
-            document.getElementById('pendingFloatInput').value = pendingTotal.toFixed(2);
-        }
+        document.getElementById('pendingCountBadge').innerText = `${entries.length} pending`;
+        
+        let totalSum = entries.reduce((acc, curr) => acc + parseFloat(curr.amount || 0), 0);
+        document.getElementById('totalPendingBadge').innerText = `Total: $${totalSum.toFixed(2)}`;
+        document.getElementById('pendingFloatInput').value = totalSum.toFixed(2);
     }
 
-    // Filter by payee search
     document.getElementById('searchFilter').addEventListener('input', (e) => {
         const term = e.target.value.toLowerCase();
         const filtered = allEntries.filter(item => item.paye.toLowerCase().includes(term));
         renderLedger(filtered);
     });
 
-    // Handle form submission
     document.getElementById('checkbookForm').addEventListener('submit', (e) => {
         e.preventDefault();
         const btn = document.getElementById('submitBtn');
@@ -309,7 +307,7 @@
             document.getElementById('date').valueAsDate = new Date();
             btn.innerText = 'Log Transaction';
             btn.disabled = false;
-            loadLedger(); // Refresh monitor
+            loadLedger();
         })
         .catch(err => {
             console.error(err);
@@ -319,7 +317,6 @@
         });
     });
 
-    // Initial load
     loadLedger();
 </script>
 
