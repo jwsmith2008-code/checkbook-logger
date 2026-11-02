@@ -242,8 +242,14 @@
         let pendingTotal = 0;
 
         entries.forEach(item => {
-            const isPending = item.status && item.status.toLowerCase() === 'x'; // Adjust if pending uses a different flag
+            // Check if status column matches pending tag (adjust if your pending flag in Column D is something else like 'pending')
+            const isPending = item.status && (item.status.toLowerCase() === 'pending' || item.status.toLowerCase() === 'green');
             
+            if (isPending) {
+                pendingCount++;
+                pendingTotal += parseFloat(item.amount || 0);
+            }
+
             const div = document.createElement('div');
             div.className = 'ledger-item' + (isPending ? ' pending' : '');
             
@@ -259,8 +265,14 @@
             listEl.appendChild(div);
         });
 
+        // Update badges
         document.getElementById('pendingCountBadge').innerText = `${pendingCount} pending`;
         document.getElementById('totalPendingBadge').innerText = `Total: $${pendingTotal.toFixed(2)}`;
+
+        // Auto-fill the Quick Verify pending float input box
+        if (pendingTotal > 0) {
+            document.getElementById('pendingFloatInput').value = pendingTotal.toFixed(2);
+        }
     }
 
     // Filter by payee search
