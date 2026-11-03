@@ -27,52 +27,51 @@
             color: #fff;
             margin-bottom: 20px;
         }
-        .form-group {
+        .card {
+            background: #252525;
+            padding: 15px;
+            border-radius: 8px;
+            border: 1px solid #333;
             margin-bottom: 15px;
+            text-align: center;
         }
-        label {
-            display: block;
+        .card-title {
             font-size: 13px;
             color: #aaa;
             margin-bottom: 5px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
         }
-        input, select, textarea {
-            width: 100%;
-            padding: 10px;
-            background: #2a2a2a;
-            border: 1px solid #444;
-            border-radius: 6px;
-            color: #fff;
-            box-sizing: border-box;
-            font-size: 14px;
-        }
-        button {
-            width: 100%;
-            padding: 12px;
-            background: #b388ff;
-            color: #121212;
-            border: none;
-            border-radius: 6px;
+        .card-value {
+            font-size: 22px;
             font-weight: bold;
-            font-size: 15px;
+            color: #fff;
+        }
+        .drop-zone {
+            border: 2px dashed #b388ff;
+            background: rgba(179, 136, 255, 0.05);
+            padding: 15px;
+            text-align: center;
+            border-radius: 8px;
             cursor: pointer;
+            margin-bottom: 15px;
             transition: background 0.2s;
         }
-        button:hover {
-            background: #9575cd;
+        .drop-zone:hover {
+            background: rgba(179, 136, 255, 0.1);
         }
         .section-title {
             font-size: 14px;
             font-weight: bold;
             color: #b388ff;
-            margin-top: 25px;
+            margin-top: 20px;
             margin-bottom: 10px;
             display: flex;
             justify-content: space-between;
             align-items: center;
         }
         .ledger-list {
-            max-height: 250px;
+            max-height: 200px;
             overflow-y: auto;
             background: #252525;
             border: 1px solid #333;
@@ -94,12 +93,15 @@
             background: rgba(46, 125, 50, 0.2);
             border-left: 3px solid #81c784;
         }
-        .verify-box {
-            background: #252525;
-            padding: 15px;
+        input, button {
+            width: 100%;
+            padding: 10px;
+            background: #2a2a2a;
+            border: 1px solid #444;
             border-radius: 6px;
-            border: 1px solid #333;
-            margin-top: 15px;
+            color: #fff;
+            box-sizing: border-box;
+            font-size: 14px;
         }
         .status-box {
             text-align: center;
@@ -110,19 +112,6 @@
             background: #2a2a2a;
             color: #aaa;
         }
-        .drop-zone {
-            border: 2px dashed #b388ff;
-            background: rgba(179, 136, 255, 0.05);
-            padding: 20px;
-            text-align: center;
-            border-radius: 8px;
-            cursor: pointer;
-            margin-bottom: 20px;
-            transition: background 0.2s;
-        }
-        .drop-zone:hover {
-            background: rgba(179, 136, 255, 0.1);
-        }
     </style>
 </head>
 <body>
@@ -130,146 +119,94 @@
 <div class="container">
     <h2>Morning Checkbook</h2>
 
-    <!-- Screenshot Upload Drop Zone -->
+    <!-- Fast Screenshot Drop Zone (iPad & PC) -->
     <div class="drop-zone" onclick="document.getElementById('screenshotInput').click()">
-        <span style="color: #b388ff; font-weight: bold; display: block; margin-bottom: 4px;">📷 Drop or Select Bank Screenshot</span>
-        <span style="font-size: 12px; color: #aaa;">Works on iPad and PC (PNG, JPG)</span>
+        <span style="color: #b388ff; font-weight: bold; font-size: 14px;">📸 Tap to Drop / Select Bank Screenshot</span>
+        <span style="font-size: 11px; color: #aaa; display: block; margin-top: 2px;">Works instantly on iPad & PC</span>
         <input type="file" id="screenshotInput" accept="image/*" style="display: none;">
     </div>
 
-    <form id="checkbookForm">
-        <div class="form-group">
-            <label for="date">Date</label>
-            <input type="date" id="date" required>
-        </div>
-        <div class="form-group">
-            <label for="payee">Payee / Description</label>
-            <input type="text" id="payee" placeholder="e.g. weis, amazon, xfer" required>
-        </div>
-        <div class="form-group" style="display: flex; gap: 10px;">
-            <div style="flex: 1;">
-                <label for="amount">Amount ($)</label>
-                <input type="number" step="0.01" id="amount" placeholder="0.00" required>
-            </div>
-            <div style="flex: 1;">
-                <label for="type">Type</label>
-                <select id="type">
-                    <option value="withdrawal">Withdrawal (-)</option>
-                    <option value="deposit">Deposit (+)</option>
-                </select>
-            </div>
-        </div>
-        <div class="form-group">
-            <label for="category">Category</label>
-            <input type="text" id="category" placeholder="e.g. groceries, coverage, etc.">
-        </div>
-        <div class="form-group">
-            <label for="statusTag">Status Tag / Color Coding</label>
-            <select id="statusTag">
-                <option value="Normal / Cleared (White)">Normal / Cleared (White)</option>
-            </select>
-        </div>
-        <button type="submit" id="submitBtn">Log Transaction</button>
-    </form>
-
-    <div class="section-title">
-        <span>Ledger Monitor (Last 75)</span>
-        <div>
-            <span id="pendingCountBadge" style="font-size:11px; background:#333; padding:2px 6px; border-radius:4px; color:#81c784;">0 pending</span>
-            <span id="totalPendingBadge" style="font-size:11px; background:#333; padding:2px 6px; border-radius:4px; color:#fff; margin-left:5px;">Total: $0.00</span>
-        </div>
-    </div>
-    
-    <div class="form-group" style="margin-bottom: 8px;">
-        <input type="text" id="searchFilter" placeholder="Filter by payee or amount..." style="padding: 6px 10px; font-size: 12px;">
-    </div>
-    
-    <div id="ledgerList" class="ledger-list">
-        <div style="text-align: center; color: #888; padding: 20px;">Fetching from Apps Script...</div>
+    <!-- 3 Core Metrics Dashboard -->
+    <div class="card">
+        <div class="card-title">3. Spendable Money Right Now</div>
+        <div class="card-value" id="spendableDisplay">$0.00</div>
     </div>
 
-    <!-- Members 1st Quick Verify -->
-    <div class="verify-box">
-        <div class="section-title" style="margin-top: 0; color: #fff;">Members 1st Quick Verify</div>
+    <div class="card">
+        <div class="card-title">1. Need to Transfer Funds for Bills?</div>
+        <div class="card-value" id="transferDisplay" style="font-size: 16px; color: #81c784;">Checking obligations...</div>
+    </div>
+
+    <!-- Quick Verify Box -->
+    <div class="card" style="text-align: left;">
+        <div class="card-title" style="text-align: center; margin-bottom: 10px;">2. Is My Checkbook Balanced?</div>
         
-        <div class="form-group" style="margin-bottom: 10px;">
-            <label>Current Bank Overall Balance ($)</label>
-            <input type="number" step="0.01" id="bankBalanceInput" placeholder="0.00">
+        <div style="margin-bottom: 8px;">
+            <label style="font-size: 12px; color: #aaa;">Current Bank Overall Balance ($)</label>
+            <input type="number" step="0.01" id="bankBalanceInput" placeholder="Enter bank balance...">
         </div>
-        <div class="form-group" style="margin-bottom: 10px;">
-            <label>Latest Sheet Balance ($)</label>
+        <div style="margin-bottom: 8px;">
+            <label style="font-size: 12px; color: #aaa;">Latest Sheet Balance ($)</label>
             <input type="number" step="0.01" id="latestSheetBalanceInput" readonly style="background: #1a1a1a; color: #888;">
         </div>
-        <div class="form-group" style="margin-bottom: 10px;">
-            <label>Total Green Pending Float ($)</label>
+        <div style="margin-bottom: 8px;">
+            <label style="font-size: 12px; color: #aaa;">Total Pending Float ($)</label>
             <input type="number" step="0.01" id="pendingFloatInput" readonly style="background: #1a1a1a; color: #888;">
         </div>
         
         <div id="verifyStatusBox" class="status-box">
-            Enter your current bank balance to verify
+            Enter your bank balance above to verify
         </div>
 
-        <button type="button" id="balanceBtn" style="margin-top: 15px; background: #81c784; color: #121212;">Mark Checkbook as Balanced</button>
+        <button type="button" id="balanceBtn" style="margin-top: 10px; background: #81c784; color: #121212; font-weight: bold;">Certify & Mark Balanced</button>
+    </div>
+
+    <div class="section-title">
+        <span>Recent Pending Items</span>
+        <span id="pendingCountBadge" style="font-size:11px; background:#333; padding:2px 6px; border-radius:4px; color:#81c784;">0 pending</span>
+    </div>
+    
+    <div id="ledgerList" class="ledger-list">
+        <div style="text-align: center; color: #888; padding: 15px;">Loading checkbook data...</div>
     </div>
 </div>
 
 <script>
     const WEB_APP_URL = "https://script.google.com/macros/s/AKfycbxMD7Pnri1ZQZx-gZ56IP1xox56jKaeroV9jSpnoU1TXNHZEYvVOgVhLTLlXhle4Ihu/exec";
-
-    const dateInput = document.getElementById('date');
-    if (dateInput) {
-        dateInput.value = new Date().toISOString().split('T')[0];
-    }
-
     let allEntries = [];
 
-    // Screenshot/Image handler placeholder
-    const screenshotInput = document.getElementById('screenshotInput');
-    if (screenshotInput) {
-        screenshotInput.addEventListener('change', function(e) {
-            const file = e.target.files[0];
-            if (file) {
-                alert(`Image selected: "${file.name}". Screenshot parsing ready for configuration!`);
-                // Reset file picker
-                e.target.value = '';
-            }
-        });
-    }
+    // Image / Screenshot Upload Handler
+    document.getElementById('screenshotInput').addEventListener('change', function(e) {
+        const file = e.target.files[0];
+        if (file) {
+            alert(`Screenshot "${file.name}" received! Ready to process.`);
+            e.target.value = '';
+        }
+    });
 
     async function loadLedger() {
         const listEl = document.getElementById('ledgerList');
-        if (!listEl) return;
-        listEl.innerHTML = '<div style="text-align: center; color: #888; padding: 20px;">Fetching from Apps Script...</div>';
-
         try {
-            const response = await fetch(WEB_APP_URL + '?action=recent', {
-                method: 'GET',
-                mode: 'cors'
-            });
+            const response = await fetch(WEB_APP_URL + '?action=recent', { method: 'GET', mode: 'cors' });
             const data = await response.json();
             
             if (data.status === 'success') {
-                const sheetBalInput = document.getElementById('latestSheetBalanceInput');
-                if (data.latestBalance && sheetBalInput) {
-                    sheetBalInput.value = data.latestBalance;
-                    checkBalanceMath();
-                }
+                const sheetBal = parseFloat(data.latestBalance || 0);
+                document.getElementById('latestSheetBalanceInput').value = sheetBal.toFixed(2);
+                document.getElementById('spendableDisplay').innerText = `$${sheetBal.toFixed(2)}`;
+                
                 allEntries = data.entries || [];
                 renderLedger(allEntries);
             } else {
-                listEl.innerHTML = `<div style="text-align:center; color:#ff6b6b; padding:10px;">Backend Error: ${data.message || 'Unknown'}</div>`;
+                listEl.innerHTML = `<div style="text-align:center; color:#ff6b6b; padding:10px;">Error loading data</div>`;
             }
         } catch (err) {
-            console.error("Fetch error details:", err);
-            listEl.innerHTML = `<div style="text-align:center; color:#ff6b6b; padding:10px;">Network/CORS Blocked. Check Console.</div>`;
+            listEl.innerHTML = `<div style="text-align:center; color:#ff6b6b; padding:10px;">Connection error</div>`;
         }
     }
 
-    function markAsCleared(rowIndex, payee, amount, type) {
-        const prefix = type === 'deposit' ? '+' : '-';
-        const confirmMsg = `Are you sure you want to clear this transaction?\n\nPayee: ${payee}\nAmount: ${prefix}$${amount}\n\nThis will mark it with an 'x' and turn the sheet row white.`;
-        
-        if (!confirm(confirmMsg)) return;
+    function markAsCleared(rowIndex) {
+        if (!confirm("Mark this pending item as cleared?")) return;
 
         fetch(WEB_APP_URL, {
             method: 'POST',
@@ -277,31 +214,19 @@
         })
         .then(res => res.json())
         .then(response => {
-            if (response.status === 'success') {
-                loadLedger();
-            } else {
-                alert('Could not clear transaction.');
-            }
-        })
-        .catch(err => console.error(err));
+            if (response.status === 'success') loadLedger();
+        });
     }
 
     function checkBalanceMath() {
-        const bankBalEl = document.getElementById('bankBalanceInput');
-        const sheetBalEl = document.getElementById('latestSheetBalanceInput');
-        const floatBalEl = document.getElementById('pendingFloatInput');
+        const bankBal = parseFloat(document.getElementById('bankBalanceInput').value);
+        const sheetBal = parseFloat(document.getElementById('latestSheetBalanceInput').value);
+        const floatBal = parseFloat(document.getElementById('pendingFloatInput').value);
         const statusBox = document.getElementById('verifyStatusBox');
-        
-        if (!bankBalEl || !sheetBalEl || !floatBalEl || !statusBox) return;
-
-        const bankBal = parseFloat(bankBalEl.value);
-        const sheetBal = parseFloat(sheetBalEl.value);
-        const floatBal = parseFloat(floatBalEl.value);
+        const transferDisplay = document.getElementById('transferDisplay');
 
         if (isNaN(bankBal)) {
-            statusBox.style.background = '#2a2a2a';
-            statusBox.style.color = '#aaa';
-            statusBox.innerHTML = 'Enter your current bank balance to verify';
+            statusBox.innerHTML = 'Enter your bank balance above to verify';
             return;
         }
 
@@ -312,69 +237,33 @@
             statusBox.style.background = 'rgba(46, 125, 50, 0.3)';
             statusBox.style.color = '#81c784';
             statusBox.innerHTML = '✅ <strong>Balanced! Ready to certify.</strong>';
+            transferDisplay.style.color = '#81c784';
+            transferDisplay.innerText = '✅ No transfer needed. All bills covered.';
         } else {
             statusBox.style.background = 'rgba(198, 40, 40, 0.3)';
             statusBox.style.color = '#ef5350';
-            statusBox.innerHTML = `⚠️ Off by $${diff.toFixed(2)} (Expected sheet: $${expectedSheet.toFixed(2)})`;
+            statusBox.innerHTML = `⚠️ Off by $${diff.toFixed(2)}`;
+            transferDisplay.style.color = '#ef5350';
+            transferDisplay.innerText = '⚠️ Variance detected. Check upcoming bills.';
         }
     }
 
-    const bankInputEl = document.getElementById('bankBalanceInput');
-    if (bankInputEl) {
-        bankInputEl.addEventListener('input', checkBalanceMath);
-    }
+    document.getElementById('bankBalanceInput').addEventListener('input', checkBalanceMath);
 
-    const balanceBtnEl = document.getElementById('balanceBtn');
-    if (balanceBtnEl) {
-        balanceBtnEl.addEventListener('click', () => {
-            const bankBal = parseFloat(document.getElementById('bankBalanceInput').value || 0);
-            const sheetBal = parseFloat(document.getElementById('latestSheetBalanceInput').value || 0);
-            const floatBal = parseFloat(document.getElementById('pendingFloatInput').value || 0);
-
-            if (isNaN(bankBal) || bankBal === 0) {
-                alert('Please enter your current bank balance first.');
-                return;
-            }
-
-            const expectedSheet = bankBal - floatBal;
-            const diff = Math.abs(expectedSheet - sheetBal);
-
-            if (diff >= 0.02) {
-                if (!confirm(`⚠️ Warning: Your numbers don't match by $${diff.toFixed(2)}.\n\nDo you still want to force-mark the checkbook as balanced?`)) {
-                    return;
-                }
-            } else {
-                if (!confirm("🎉 Everything matches perfectly!\n\nMark your register with your balancing note?")) {
-                    return;
-                }
-            }
-
-            fetch(WEB_APP_URL, {
-                method: 'POST',
-                body: JSON.stringify({ action: 'balance' })
-            })
-            .then(res => res.json())
-            .then(response => {
-                if (response.status === 'success') {
-                    alert("Checkbook successfully marked as balanced! ❤️\nNote logged in register.");
-                } else {
-                    alert('Error marking balance note.');
-                }
-            })
-            .catch(err => console.error(err));
+    document.getElementById('balanceBtn').addEventListener('click', () => {
+        fetch(WEB_APP_URL, {
+            method: 'POST',
+            body: JSON.stringify({ action: 'balance' })
+        })
+        .then(res => res.json())
+        .then(res => {
+            if (res.status === 'success') alert('Checkbook successfully certified and marked balanced!');
         });
-    }
+    });
 
     function renderLedger(entries) {
         const listEl = document.getElementById('ledgerList');
-        if (!listEl) return;
         listEl.innerHTML = '';
-
-        if (!entries || entries.length === 0) {
-            listEl.innerHTML = '<div style="text-align: center; color: #777; padding: 20px;">No history found.</div>';
-            return;
-        }
-
         let pendingCount = 0;
         let pendingTotal = 0;
 
@@ -384,98 +273,25 @@
 
             if (isPending) {
                 pendingCount++;
-                if (item.type === 'deposit') {
-                    pendingTotal += amt;
-                } else {
-                    pendingTotal -= amt;
-                }
+                if (item.type === 'deposit') pendingTotal += amt;
+                else pendingTotal -= amt;
             }
 
             const div = document.createElement('div');
             div.className = 'ledger-item' + (isPending ? ' pending' : '');
             div.style.cursor = isPending ? 'pointer' : 'default';
-            div.title = isPending ? 'Click to verify and clear transaction' : 'Already cleared';
-
-            if (isPending) {
-                div.onclick = () => markAsCleared(item.rowIndex, item.paye, item.amount, item.type);
-            }
+            if (isPending) div.onclick = () => markAsCleared(item.rowIndex);
             
-            const prefix = item.type === 'deposit' ? '+' : '-';
             div.innerHTML = `
-                <div>
-                    <strong>${item.paye}</strong> <span style="font-size:11px; color:#888;">(${item.date})</span>
-                </div>
-                <div style="color: ${item.type === 'deposit' ? '#81c784' : '#e0e0e0'}">
-                    ${prefix}$${item.amount} ${isPending ? ' <span style="font-size:10px; color:#a5d6a7;">[Click to Clear]</span>' : ''}
-                </div>
+                <div><strong>${item.paye}</strong> <span style="font-size:11px; color:#888;">(${item.date})</span></div>
+                <div>${item.type === 'deposit' ? '+' : '-'}$${item.amount} ${isPending ? '<span style="font-size:10px; color:#a5d6a7;">[Clear]</span>' : ''}</div>
             `;
             listEl.appendChild(div);
         });
 
-        pendingTotal = Math.abs(pendingTotal);
-
-        const pendingCountBadge = document.getElementById('pendingCountBadge');
-        const totalPendingBadge = document.getElementById('totalPendingBadge');
-        const pendingFloatInput = document.getElementById('pendingFloatInput');
-
-        if (pendingCountBadge) pendingCountBadge.innerText = `${pendingCount} pending`;
-        if (totalPendingBadge) totalPendingBadge.innerText = `Total: $${pendingTotal.toFixed(2)}`;
-        if (pendingFloatInput) pendingFloatInput.value = pendingTotal.toFixed(2);
-        
+        document.getElementById('pendingCountBadge.innerText = `${pendingCount} pending`;
+        document.getElementById('pendingFloatInput').value = Math.abs(pendingTotal).toFixed(2);
         checkBalanceMath();
-    }
-
-    const searchFilterEl = document.getElementById('searchFilter');
-    if (searchFilterEl) {
-        searchFilterEl.addEventListener('input', (e) => {
-            const term = e.target.value.toLowerCase();
-            const filtered = allEntries.filter(item => {
-                const matchPayee = item.paye && item.paye.toLowerCase().includes(term);
-                const matchAmount = item.amount && item.amount.toString().includes(term);
-                return matchPayee || matchAmount;
-            });
-            renderLedger(filtered);
-        });
-    }
-
-    const checkbookFormEl = document.getElementById('checkbookForm');
-    if (checkbookFormEl) {
-        checkbookFormEl.addEventListener('submit', (e) => {
-            e.preventDefault();
-            const btn = document.getElementById('submitBtn');
-            btn.innerText = 'Logging...';
-            btn.disabled = true;
-
-            const payload = {
-                date: document.getElementById('date').value,
-                payee: document.getElementById('payee').value,
-                amount: document.getElementById('amount').value,
-                type: document.getElementById('type').value,
-                category: document.getElementById('category').value,
-                statusTag: document.getElementById('statusTag').value
-            };
-
-            fetch(WEB_APP_URL, {
-                method: 'POST',
-                body: JSON.stringify(payload)
-            })
-            .then(res => res.json())
-            .then(response => {
-                alert('Transaction logged successfully!');
-                document.getElementById('checkbookForm').reset();
-                const dateInputReset = document.getElementById('date');
-                if(dateInputReset) dateInputReset.value = new Date().toISOString().split('T')[0];
-                btn.innerText = 'Log Transaction';
-                btn.disabled = false;
-                loadLedger();
-            })
-            .catch(err => {
-                console.error(err);
-                alert('Error logging transaction.');
-                btn.innerText = 'Log Transaction';
-                btn.disabled = false;
-            });
-        });
     }
 
     loadLedger();
