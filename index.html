@@ -121,9 +121,9 @@
 <div class="container">
     <h2>Morning Checkbook</h2>
 
-    <!-- Screenshot Upload / File Picker Zone -->
+    <!-- Screenshot Upload / Paste Zone -->
     <div class="drop-zone" onclick="document.getElementById('screenshotInput').click()">
-        <span id="dropText" style="color: #b388ff; font-weight: bold; font-size: 13px;">📸 Click Here to Select Bank Screenshot</span>
+        <span id="dropText" style="color: #b388ff; font-weight: bold; font-size: 13px;">📸 Paste (Ctrl+V) or Click to Select Screenshot</span>
         <span style="font-size: 11px; color: #aaa; display: block; margin-top: 2px;">Extracts Overall Balance & Auto-Clears Posted Items</span>
         <input type="file" id="screenshotInput" accept="image/*" style="display: none;">
     </div>
@@ -137,7 +137,7 @@
     <!-- Answer 1: Need to Transfer Funds? -->
     <div class="card">
         <div class="card-title">1. Do I Need to Transfer Money?</div>
-        <div class="card-value" id="transferDisplay" style="font-size: 15px; color: #81c784;">Select screenshot above to check...</div>
+        <div class="card-value" id="transferDisplay" style="font-size: 15px; color: #81c784;">Provide screenshot above to check...</div>
     </div>
 
     <!-- Answer 2: Is My Checkbook Balanced? -->
@@ -151,7 +151,7 @@
         <input type="hidden" id="pendingFloatInput">
         
         <div id="verifyStatusBox" class="status-box">
-            Select screenshot to verify overall balance
+            Provide screenshot to verify overall balance
         </div>
 
         <button type="button" id="balanceBtn" style="margin-top: 10px; background: #81c784; color: #121212; font-weight: bold; display: none;">Certify & Mark Balanced</button>
@@ -171,7 +171,7 @@
     const WEB_APP_URL = "https://script.google.com/macros/s/AKfycbxMD7Pnri1ZQZx-gZ56IP1xox56jKaeroV9jSpnoU1TXNHZEYvVOgVhLTLlXhle4Ihu/exec";
     let allEntries = [];
 
-    // Screenshot OCR Handler targeting Overall Balance & Auto-Reconciling Posted Items
+    // Core OCR Scanning & Auto-Reconciliation Function
     async function processImageFile(file) {
         if (!file) return;
         const dropText = document.getElementById('dropText');
@@ -239,11 +239,24 @@
         }
     }
 
+    // File Input Change Handler (iPad / Mobile)
     document.getElementById('screenshotInput').addEventListener('change', function(e) {
         const file = e.target.files[0];
         if (file) {
             processImageFile(file);
             e.target.value = '';
+        }
+    });
+
+    // Global Clipboard Paste Listener (Ctrl+V / Cmd+V support for PC)
+    window.addEventListener('paste', function(e) {
+        const items = e.clipboardData.items;
+        for (let i = 0; i < items.length; i++) {
+            if (items[i].type.indexOf('image') !== -1) {
+                const file = items[i].getAsFile();
+                processImageFile(file);
+                break;
+            }
         }
     });
 
@@ -290,8 +303,8 @@
         const balanceBtn = document.getElementById('balanceBtn');
 
         if (isNaN(bankBal)) {
-            statusBox.innerHTML = 'Select screenshot to verify overall balance';
-            transferDisplay.innerText = 'Select screenshot above to check...';
+            statusBox.innerHTML = 'Provide screenshot to verify overall balance';
+            transferDisplay.innerText = 'Provide screenshot above to check...';
             balanceBtn.style.display = 'none';
             return;
         }
