@@ -209,44 +209,54 @@
 
     let allEntries = [];
 
-    // Smart Paste Parser Logic
-    document.getElementById('quickPasteInput').addEventListener('input', function(e) {
-        const text = e.target.value;
-        const matchDate = text.match(/(\d{2}\/\d{2}(\/\d{4})?)/);
-        const matchAmount = text.match(/\$?-?\d+\.\d{2}/);
-        
-        if (matchDate && matchAmount) {
-            let dateStr = matchDate[1];
-            if (!dateStr.includes('2026') && !dateStr.includes('2025')) {
-                dateStr += '/' + new Date().getFullYear();
-            }
-            const parts = dateStr.split('/');
-            if (parts.length === 3) {
-                document.getElementById('date').value = `${parts[2]}-${parts[0].padStart(2, '0')}-${parts[1].padStart(2, '0')}`;
-            }
-
-            const rawAmtStr = matchAmount[0];
-            const cleanAmt = rawAmtStr.replace('$', '').replace('-', '');
-            document.getElementById('amount').value = cleanAmt;
+    // Safe Smart-Paste listener
+    const pasteBox = document.getElementById('quickPasteInput');
+    if (pasteBox) {
+        pasteBox.addEventListener('input', function(e) {
+            const text = e.target.value;
+            const matchDate = text.match(/(\d{2}\/\d{2}(\/\d{4})?)/);
+            const matchAmount = text.match(/\$?-?\d+\.\d{2}/);
             
-            if (rawAmtStr.includes('-') || text.toLowerCase().includes('withdrawal')) {
-                document.getElementById('type').value = 'withdrawal';
-            } else {
-                document.getElementById('type').value = 'deposit';
-            }
+            if (matchDate && matchAmount) {
+                let dateStr = matchDate[1];
+                if (!dateStr.includes('2026') && !dateStr.includes('2025')) {
+                    dateStr += '/' + new Date().getFullYear();
+                }
+                const parts = dateStr.split('/');
+                if (parts.length === 3) {
+                    const dField = document.getElementById('date');
+                    if (dField) dField.value = `${parts[2]}-${parts[0].padStart(2, '0')}-${parts[1].padStart(2, '0')}`;
+                }
 
-            let cleanedPayee = text.replace(matchDate[0], '').replace(rawAmtStr, '').trim();
-            cleanedPayee = cleanedPayee.replace(/^[-–—\s]+|[-–—\s]+$/g, '');
-            if (cleanedPayee) {
-                document.getElementById('payee').value = cleanedPayee;
+                const rawAmtStr = matchAmount[0];
+                const cleanAmt = rawAmtStr.replace('$', '').replace('-', '');
+                const amtField = document.getElementById('amount');
+                if (amtField) amtField.value = cleanAmt;
+                
+                const typeField = document.getElementById('type');
+                if (typeField) {
+                    if (rawAmtStr.includes('-') || text.toLowerCase().includes('withdrawal')) {
+                        typeField.value = 'withdrawal';
+                    } else {
+                        typeField.value = 'deposit';
+                    }
+                }
+
+                let cleanedPayee = text.replace(matchDate[0], '').replace(rawAmtStr, '').trim();
+                cleanedPayee = cleanedPayee.replace(/^[-–—\s]+|[-–—\s]+$/g, '');
+                const payeeField = document.getElementById('payee');
+                if (cleanedPayee && payeeField) {
+                    payeeField.value = cleanedPayee;
+                }
+                
+                setTimeout(() => { e.target.value = ''; }, 300);
             }
-            
-            setTimeout(() => { e.target.value = ''; }, 300);
-        }
-    });
+        });
+    }
 
     async function loadLedger() {
         const listEl = document.getElementById('ledgerList');
+        if (!listEl) return;
         listEl.innerHTML = '<div style="text-align: center; color: #888; padding: 20px;">Fetching from Apps Script...</div>';
 
         try {
@@ -257,8 +267,9 @@
             const data = await response.json();
             
             if (data.status === 'success') {
-                if (data.latestBalance) {
-                    document.getElementById('latestSheetBalanceInput').value = data.latestBalance;
+                const sheetBalInput = document.getElementById('latestSheetBalanceInput');
+                if (data.latestBalance && sheetBalInput) {
+                    sheetBalInput.value = data.latestBalance;
                     checkBalanceMath();
                 }
                 allEntries = data.entries || [];
@@ -294,10 +305,16 @@
     }
 
     function checkBalanceMath() {
-        const bankBal = parseFloat(document.getElementById('bankBalanceInput').value);
-        const sheetBal = parseFloat(document.getElementById('latestSheetBalanceInput').value);
-        const floatBal = parseFloat(document.getElementById('pendingFloatInput').value);
+        const bankBalEl = document.getElementById('bankBalanceInput');
+        const sheetBalEl = document.getElementById('latestSheetBalanceInput');
+        const floatBalEl = document.getElementById('pendingFloatInput');
         const statusBox = document.getElementById('verifyStatusBox');
+        
+        if (!bankBalEl || !sheetBalEl || !floatBalEl || !statusBox) return;
+
+        const bankBal = parseFloat(bankBalEl.value);
+        const sheetBal = parseFloat(sheetBalEl.value);
+        const floatBal = parseFloat(floatBalEl.value);
 
         if (isNaN(bankBal)) {
             statusBox.style.background = '#2a2a2a';
@@ -320,48 +337,55 @@
         }
     }
 
-    document.getElementById('bankBalanceInput').addEventListener('input', checkBalanceMath);
+    const bankInputEl = document.getElementById('bankBalanceInput');
+    if (bankInputEl) {
+        bankInputEl.addEventListener('input', checkBalanceMath);
+    }
 
-    document.getElementById('balanceBtn').addEventListener('click', () => {
-        const bankBal = parseFloat(document.getElementById('bankBalanceInput').value || 0);
-        const sheetBal = parseFloat(document.getElementById('latestSheetBalanceInput').value || 0);
-        const floatBal = parseFloat(document.getElementById('pendingFloatInput').value || 0);
+    const balanceBtnEl = document.getElementById('balanceBtn');
+    if (balanceBtnEl) {
+        balanceBtnEl.addEventListener('click', () => {
+            const bankBal = parseFloat(document.getElementById('bankBalanceInput').value || 0);
+            const sheetBal = parseFloat(document.getElementById('latestSheetBalanceInput').value || 0);
+            const floatBal = parseFloat(document.getElementById('pendingFloatInput').value || 0);
 
-        if (isNaN(bankBal) || bankBal === 0) {
-            alert('Please enter your current bank balance first.');
-            return;
-        }
-
-        const expectedSheet = bankBal - floatBal;
-        const diff = Math.abs(expectedSheet - sheetBal);
-
-        if (diff >= 0.02) {
-            if (!confirm(`⚠️ Warning: Your numbers don't match by $${diff.toFixed(2)}.\n\nDo you still want to force-mark the checkbook as balanced?`)) {
+            if (isNaN(bankBal) || bankBal === 0) {
+                alert('Please enter your current bank balance first.');
                 return;
             }
-        } else {
-            if (!confirm("🎉 Everything matches perfectly!\n\nMark your register with your balancing note?")) {
-                return;
-            }
-        }
 
-        fetch(WEB_APP_URL, {
-            method: 'POST',
-            body: JSON.stringify({ action: 'balance' })
-        })
-        .then(res => res.json())
-        .then(response => {
-            if (response.status === 'success') {
-                alert("Checkbook successfully marked as balanced! ❤️\nNote logged in register.");
+            const expectedSheet = bankBal - floatBal;
+            const diff = Math.abs(expectedSheet - sheetBal);
+
+            if (diff >= 0.02) {
+                if (!confirm(`⚠️ Warning: Your numbers don't match by $${diff.toFixed(2)}.\n\nDo you still want to force-mark the checkbook as balanced?`)) {
+                    return;
+                }
             } else {
-                alert('Error marking balance note.');
+                if (!confirm("🎉 Everything matches perfectly!\n\nMark your register with your balancing note?")) {
+                    return;
+                }
             }
-        })
-        .catch(err => console.error(err));
-    });
+
+            fetch(WEB_APP_URL, {
+                method: 'POST',
+                body: JSON.stringify({ action: 'balance' })
+            })
+            .then(res => res.json())
+            .then(response => {
+                if (response.status === 'success') {
+                    alert("Checkbook successfully marked as balanced! ❤️\nNote logged in register.");
+                } else {
+                    alert('Error marking balance note.');
+                }
+            })
+            .catch(err => console.error(err));
+        });
+    }
 
     function renderLedger(entries) {
         const listEl = document.getElementById('ledgerList');
+        if (!listEl) return;
         listEl.innerHTML = '';
 
         if (!entries || entries.length === 0) {
@@ -408,59 +432,69 @@
 
         pendingTotal = Math.abs(pendingTotal);
 
-        document.getElementById('pendingCountBadge').innerText = `${pendingCount} pending`;
-        document.getElementById('totalPendingBadge').innerText = `Total: $${pendingTotal.toFixed(2)}`;
-        document.getElementById('pendingFloatInput').value = pendingTotal.toFixed(2);
+        const pendingCountBadge = document.getElementById('pendingCountBadge');
+        const totalPendingBadge = document.getElementById('totalPendingBadge');
+        const pendingFloatInput = document.getElementById('pendingFloatInput');
+
+        if (pendingCountBadge) pendingCountBadge.innerText = `${pendingCount} pending`;
+        if (totalPendingBadge) totalPendingBadge.innerText = `Total: $${pendingTotal.toFixed(2)}`;
+        if (pendingFloatInput) pendingFloatInput.value = pendingTotal.toFixed(2);
         
         checkBalanceMath();
     }
 
-    document.getElementById('searchFilter').addEventListener('input', (e) => {
-        const term = e.target.value.toLowerCase();
-        const filtered = allEntries.filter(item => {
-            const matchPayee = item.paye && item.paye.toLowerCase().includes(term);
-            const matchAmount = item.amount && item.amount.toString().includes(term);
-            return matchPayee || matchAmount;
+    const searchFilterEl = document.getElementById('searchFilter');
+    if (searchFilterEl) {
+        searchFilterEl.addEventListener('input', (e) => {
+            const term = e.target.value.toLowerCase();
+            const filtered = allEntries.filter(item => {
+                const matchPayee = item.paye && item.paye.toLowerCase().includes(term);
+                const matchAmount = item.amount && item.amount.toString().includes(term);
+                return matchPayee || matchAmount;
+            });
+            renderLedger(filtered);
         });
-        renderLedger(filtered);
-    });
+    }
 
-    document.getElementById('checkbookForm').addEventListener('submit', (e) => {
-        e.preventDefault();
-        const btn = document.getElementById('submitBtn');
-        btn.innerText = 'Logging...';
-        btn.disabled = true;
+    const checkbookFormEl = document.getElementById('checkbookForm');
+    if (checkbookFormEl) {
+        checkbookFormEl.addEventListener('submit', (e) => {
+            e.preventDefault();
+            const btn = document.getElementById('submitBtn');
+            btn.innerText = 'Logging...';
+            btn.disabled = true;
 
-        const payload = {
-            date: document.getElementById('date').value,
-            payee: document.getElementById('payee').value,
-            amount: document.getElementById('amount').value,
-            type: document.getElementById('type').value,
-            category: document.getElementById('category').value,
-            statusTag: document.getElementById('statusTag').value
-        };
+            const payload = {
+                date: document.getElementById('date').value,
+                payee: document.getElementById('payee').value,
+                amount: document.getElementById('amount').value,
+                type: document.getElementById('type').value,
+                category: document.getElementById('category').value,
+                statusTag: document.getElementById('statusTag').value
+            };
 
-        fetch(WEB_APP_URL, {
-            method: 'POST',
-            body: JSON.stringify(payload)
-        })
-        .then(res => res.json())
-        .then(response => {
-            alert('Transaction logged successfully!');
-            document.getElementById('checkbookForm').reset();
-            const dateInputReset = document.getElementById('date');
-            if(dateInputReset) dateInputReset.value = new Date().toISOString().split('T')[0];
-            btn.innerText = 'Log Transaction';
-            btn.disabled = false;
-            loadLedger();
-        })
-        .catch(err => {
-            console.error(err);
-            alert('Error logging transaction.');
-            btn.innerText = 'Log Transaction';
-            btn.disabled = false;
+            fetch(WEB_APP_URL, {
+                method: 'POST',
+                body: JSON.stringify(payload)
+            })
+            .then(res => res.json())
+            .then(response => {
+                alert('Transaction logged successfully!');
+                document.getElementById('checkbookForm').reset();
+                const dateInputReset = document.getElementById('date');
+                if(dateInputReset) dateInputReset.value = new Date().toISOString().split('T')[0];
+                btn.innerText = 'Log Transaction';
+                btn.disabled = false;
+                loadLedger();
+            })
+            .catch(err => {
+                console.error(err);
+                alert('Error logging transaction.');
+                btn.innerText = 'Log Transaction';
+                btn.disabled = false;
+            });
         });
-    });
+    }
 
     loadLedger();
 </script>
