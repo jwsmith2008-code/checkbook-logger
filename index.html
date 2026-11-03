@@ -1,28 +1,250 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Morning Checkbook Logger</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            background-color: #121212;
+            color: #e0e0e0;
+            margin: 0;
+            padding: 20px;
+            display: flex;
+            justify-content: center;
+        }
+        .container {
+            width: 100%;
+            max-width: 480px;
+            background: #1e1e1e;
+            padding: 20px;
+            border-radius: 12px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.5);
+        }
+        h2 {
+            text-align: center;
+            color: #fff;
+            margin-bottom: 20px;
+        }
+        .form-group {
+            margin-bottom: 15px;
+        }
+        label {
+            display: block;
+            font-size: 13px;
+            color: #b0b0b0;
+            margin-bottom: 5px;
+        }
+        input, select {
+            width: 100%;
+            padding: 10px;
+            background: #2a2a2a;
+            border: 1px solid #3d3d3d;
+            color: #fff;
+            border-radius: 6px;
+            box-sizing: border-box;
+            font-size: 14px;
+        }
+        input:focus, select:focus {
+            outline: none;
+            border-color: #bb86fc;
+        }
+        .row {
+            display: flex;
+            gap: 10px;
+        }
+        .row .form-group {
+            flex: 1;
+        }
+        button {
+            width: 100%;
+            padding: 12px;
+            background: #bb86fc;
+            color: #121212;
+            border: none;
+            border-radius: 6px;
+            font-weight: bold;
+            font-size: 15px;
+            cursor: pointer;
+            margin-top: 10px;
+            transition: background 0.2s;
+        }
+        button:hover {
+            background: #9965f4;
+        }
+        button.success-btn {
+            background: #81c784;
+            color: #121212;
+        }
+        button.success-btn:hover {
+            background: #66bb6a;
+        }
+        .section-box {
+            margin-top: 25px;
+            background: #252525;
+            padding: 15px;
+            border-radius: 8px;
+            border: 1px solid #333;
+        }
+        .section-title {
+            font-size: 14px;
+            font-weight: bold;
+            color: #bb86fc;
+            margin-bottom: 10px;
+        }
+        .ledger-list {
+            max-height: 220px;
+            overflow-y: auto;
+            margin-top: 10px;
+            border-top: 1px solid #333;
+        }
+        .ledger-item {
+            display: flex;
+            justify-content: space-between;
+            padding: 8px 4px;
+            border-bottom: 1px solid #2a2a2a;
+            font-size: 13px;
+            transition: background 0.15s;
+        }
+        .ledger-item.pending {
+            background: rgba(46, 125, 50, 0.2);
+        }
+        .ledger-item.pending:hover {
+            background: rgba(46, 125, 50, 0.4);
+        }
+        .summary-row {
+            display: flex;
+            justify-content: space-between;
+            font-size: 12px;
+            color: #aaa;
+            margin-bottom: 8px;
+        }
+        .badge {
+            background: #333;
+            padding: 2px 6px;
+            border-radius: 4px;
+            color: #fff;
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h2>Morning Checkbook</h2>
+
+    <!-- TRANSACTION FORM -->
+    <form id="checkbookForm">
+        <div class="form-group">
+            <label>Date</label>
+            <input type="date" id="date" required>
+        </div>
+        <div class="form-group">
+            <label>Payee / Description</label>
+            <input type="text" id="payee" placeholder="e.g. weis, amazon, xfer to mortgage" required>
+        </div>
+        <div class="row">
+            <div class="form-group">
+                <label>Amount ($)</label>
+                <input type="number" step="0.01" id="amount" placeholder="0.00" required>
+            </div>
+            <div class="form-group">
+                <label>Type</label>
+                <select id="type">
+                    <option value="withdrawal">Withdrawal (-)</option>
+                    <option value="deposit">Deposit (+)</option>
+                </select>
+            </div>
+        </div>
+        <div class="form-group">
+            <label>Category</label>
+            <input type="text" id="category" placeholder="e.g. groceries, coverage, etc.">
+        </div>
+        <div class="form-group">
+            <label>Status Tag / Color Coding</label>
+            <select id="statusTag">
+                <option value="normal">Normal / Cleared (White)</option>
+                <option value="pending">🟢 Pending (Lime Green)</option>
+                <option value="transfer">Brownish/Reddish (Transfer)</option>
+                <option value="reimbursable">Sky Blue (Work Expense)</option>
+                <option value="replenish">Purple (Needs Replenishment)</option>
+            </select>
+        </div>
+        <button type="submit" id="submitBtn">Log Transaction</button>
+    </form>
+
+    <!-- LEDGER MONITOR -->
+    <div class="section-box">
+        <div class="section-title">👀 Ledger Monitor (Last 75)</div>
+        <div class="summary-row">
+            <span>Status Summary:</span>
+            <span class="badge" id="pendingCountBadge">0 pending</span>
+            <span class="badge" id="totalPendingBadge">Total: $0.00</span>
+        </div>
+        <div class="form-group" style="margin-bottom: 8px;">
+            <input type="text" id="searchFilter" placeholder="Filter by payee or amount..." style="padding: 6px; font-size: 12px;">
+        </div>
+        <div class="ledger-list" id="ledgerList">
+            <div style="text-align: center; color: #777; padding: 20px;">Loading history...</div>
+        </div>
+    </div>
+
+    <!-- MEMBERS 1ST QUICK VERIFY -->
+    <div class="section-box">
+        <div class="section-title">🔍 Members 1st Quick Verify</div>
+        <div class="form-group">
+            <label>Current Bank Overall Balance ($)</label>
+            <input type="number" step="0.01" id="bankBalanceInput" placeholder="e.g. 2814.50">
+        </div>
+        <div class="form-group">
+            <label>Latest Sheet Balance ($)</label>
+            <input type="number" step="0.01" id="latestSheetBalanceInput" placeholder="Auto-loading...">
+        </div>
+        <div class="form-group" style="margin-bottom: 0;">
+            <label>Total Green Pending Float ($)</label>
+            <input type="number" step="0.01" id="pendingFloatInput" placeholder="Auto-calculating...">
+        </div>
+        
+        <!-- LIVE VERIFICATION STATUS BANNER -->
+        <div id="verifyStatusBox" style="margin-top: 12px; padding: 10px; border-radius: 6px; text-align: center; font-size: 13px; background: #2a2a2a; color: #aaa;">
+            Enter bank balance above to verify match
+        </div>
+
+        <button type="button" class="success-btn" id="balanceBtn" style="margin-top: 15px;">🎉 Mark Checkbook as Balanced</button>
+    </div>
+</div>
+
 <script>
     const WEB_APP_URL = "https://script.google.com/macros/s/AKfycbxMD7Pnri1ZQZx-gZ56IP1xox56jKaeroV9jSpnoU1TXNHZEYvVOgVhLTLlXhle4Ihu/exec";
 
     document.getElementById('date').valueAsDate = new Date();
     let allEntries = [];
 
-    function loadLedger() {
-        fetch(WEB_APP_URL + '?action=recent')
-            .then(res => res.json())
-            .then(data => {
-                if (data.status === 'success') {
-                    if (data.latestBalance) {
-                        document.getElementById('latestSheetBalanceInput').value = data.latestBalance;
-                        checkBalanceMath();
-                    }
-                    allEntries = data.entries || [];
-                    renderLedger(allEntries);
-                } else {
-                    document.getElementById('ledgerList').innerHTML = '<div style="text-align:center; color:#ff6b6b; padding:10px;">Failed to load history</div>';
-                }
-            })
-            .catch(err => {
-                console.error(err);
-                document.getElementById('ledgerList').innerHTML = '<div style="text-align:center; color:#ff6b6b; padding:10px;">Connection error</div>';
+    async function loadLedger() {
+        const listEl = document.getElementById('ledgerList');
+        listEl.innerHTML = '<div style="text-align: center; color: #888; padding: 20px;">Fetching from Apps Script...</div>';
+
+        try {
+            const response = await fetch(WEB_APP_URL + '?action=recent', {
+                method: 'GET',
+                mode: 'cors'
             });
+            const data = await response.json();
+            
+            if (data.status === 'success') {
+                if (data.latestBalance) {
+                    document.getElementById('latestSheetBalanceInput').value = data.latestBalance;
+                    checkBalanceMath();
+                }
+                allEntries = data.entries || [];
+                renderLedger(allEntries);
+            } else {
+                listEl.innerHTML = `<div style="text-align:center; color:#ff6b6b; padding:10px;">Backend Error: ${data.message || 'Unknown'}</div>`;
+            }
+        } catch (err) {
+            console.error("Fetch error details:", err);
+            listEl.innerHTML = `<div style="text-align:center; color:#ff6b6b; padding:10px;">Network/CORS Blocked. Check Console.</div>`;
+        }
     }
 
     function markAsCleared(rowIndex, payee, amount, type) {
@@ -168,6 +390,7 @@
         checkBalanceMath();
     }
 
+    // Search filter supporting both payee name AND amount
     document.getElementById('searchFilter').addEventListener('input', (e) => {
         const term = e.target.value.toLowerCase();
         const filtered = allEntries.filter(item => {
@@ -216,3 +439,6 @@
 
     loadLedger();
 </script>
+
+</body>
+</html>
