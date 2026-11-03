@@ -56,10 +56,12 @@
             border-radius: 8px;
             cursor: pointer;
             margin-bottom: 15px;
-            transition: background 0.2s;
+            outline: none;
+            transition: background 0.2s, border-color 0.2s;
         }
-        .drop-zone:hover {
-            background: rgba(179, 136, 255, 0.1);
+        .drop-zone:focus, .drop-zone:hover {
+            background: rgba(179, 136, 255, 0.12);
+            border-color: #d1c4e9;
         }
         .section-title {
             font-size: 13px;
@@ -121,9 +123,9 @@
 <div class="container">
     <h2>Morning Checkbook</h2>
 
-    <!-- Screenshot Upload / Paste Zone -->
-    <div class="drop-zone" onclick="document.getElementById('screenshotInput').click()">
-        <span id="dropText" style="color: #b388ff; font-weight: bold; font-size: 13px;">📸 Paste (Ctrl+V) or Click to Select Screenshot</span>
+    <!-- Focusable Paste & Upload Zone -->
+    <div class="drop-zone" id="pasteZone" tabindex="0" onclick="document.getElementById('screenshotInput').click()">
+        <span id="dropText" style="color: #b388ff; font-weight: bold; font-size: 13px;">📋 Click Here, then Press Ctrl+V (or Click to Browse)</span>
         <span style="font-size: 11px; color: #aaa; display: block; margin-top: 2px;">Extracts Overall Balance & Auto-Clears Posted Items</span>
         <input type="file" id="screenshotInput" accept="image/*" style="display: none;">
     </div>
@@ -171,7 +173,6 @@
     const WEB_APP_URL = "https://script.google.com/macros/s/AKfycbxMD7Pnri1ZQZx-gZ56IP1xox56jKaeroV9jSpnoU1TXNHZEYvVOgVhLTLlXhle4Ihu/exec";
     let allEntries = [];
 
-    // Core OCR Scanning & Auto-Reconciliation Function
     async function processImageFile(file) {
         if (!file) return;
         const dropText = document.getElementById('dropText');
@@ -182,7 +183,6 @@
             const text = result.data.text;
             console.log("OCR Extracted Text:", text);
 
-            // 1. Extract Overall Balance
             let extractedAmount = null;
             const lines = text.split('\n');
             for (let i = 0; i < lines.length; i++) {
@@ -208,7 +208,6 @@
                 document.getElementById('bankBalanceInput').value = extractedAmount;
             }
 
-            // 2. Auto-Reconcile / Match Pending Items against OCR text
             const rowsToClear = [];
             allEntries.forEach(item => {
                 const isPending = !item.status || item.status.toLowerCase() !== 'x';
@@ -221,7 +220,6 @@
                 }
             });
 
-            // 3. Send batch clear request to Google Sheet if matches found
             if (rowsToClear.length > 0) {
                 await fetch(WEB_APP_URL, {
                     method: 'POST',
@@ -232,14 +230,13 @@
                 dropText.innerText = extractedAmount ? `✅ Loaded Overall Balance: $${extractedAmount}` : "⚠️ Scan complete.";
             }
 
-            loadLedger(); // Refresh view
+            loadLedger();
         } catch (err) {
             console.error("OCR Error:", err);
             dropText.innerText = "❌ Scan failed. Try another screenshot.";
         }
     }
 
-    // File Input Change Handler (iPad / Mobile)
     document.getElementById('screenshotInput').addEventListener('change', function(e) {
         const file = e.target.files[0];
         if (file) {
@@ -248,7 +245,20 @@
         }
     });
 
-    // Global Clipboard Paste Listener (Ctrl+V / Cmd+V support for PC)
+    // Dedicated paste listener directly on the paste zone element
+    document.getElementById('pasteZone').addEventListener('paste', function(e) {
+        const items = e.clipboardData.items;
+        for (let i = 0; i < items.length; i++) {
+            if (items[i].type.indexOf('image') !== -1) {
+                const file = items[i].getAsFile();
+                processImageFile(file);
+                e.preventDefault();
+                break;
+            }
+        }
+    });
+
+    // Fallback global window paste listener
     window.addEventListener('paste', function(e) {
         const items = e.clipboardData.items;
         for (let i = 0; i < items.length; i++) {
