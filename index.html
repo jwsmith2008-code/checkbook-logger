@@ -126,7 +126,7 @@
     <!-- Focusable Paste & Upload Zone -->
     <div class="drop-zone" id="pasteZone" tabindex="0" onclick="document.getElementById('screenshotInput').click()">
         <span id="dropText" style="color: #b388ff; font-weight: bold; font-size: 13px;">📋 Click Here, then Press Ctrl+V (or Click to Browse)</span>
-        <span style="font-size: 11px; color: #aaa; display: block; margin-top: 2px;">Extracts Balance & Auto-Clears Missing Posted Items</span>
+        <span style="font-size: 11px; color: #aaa; display: block; margin-top: 2px;">Extracts Balance & Reconciles Posted Items</span>
         <input type="file" id="screenshotInput" accept="image/*" style="display: none;">
     </div>
 
@@ -176,7 +176,7 @@
     async function processImageFile(file) {
         if (!file) return;
         const dropText = document.getElementById('dropText');
-        dropText.innerText = "⏳ Scanning screenshot & reconciling...";
+        dropText.innerText = "⏳ Scanning screenshot & reconciling posted items...";
 
         try {
             const result = await Tesseract.recognize(file, 'eng');
@@ -209,13 +209,13 @@
                 document.getElementById('bankBalanceInput').value = extractedAmount;
             }
 
-            // 2. Auto-Clear items that are NO LONGER present in the screenshot text
+            // 2. Auto-Clear only items that have dropped off the screenshot (fully posted)
             const rowsToClear = [];
             allEntries.forEach(item => {
                 const isPending = !item.status || item.status.toLowerCase() !== 'x';
                 if (isPending) {
                     const amtStr = parseFloat(item.amount).toFixed(2);
-                    // If the amount is NOT anywhere in the screenshot text, it has dropped off/posted!
+                    // If the amount is completely gone from the screenshot, it posted!
                     if (!text.includes(amtStr)) {
                         rowsToClear.push(item.rowIndex);
                     }
@@ -227,7 +227,7 @@
                     method: 'POST',
                     body: JSON.stringify({ action: 'batchClear', rowIndices: rowsToClear })
                 });
-                dropText.innerText = `✅ Balance loaded & ${rowsToClear.length} posted item(s) auto-cleared!`;
+                dropText.innerText = `✅ Balance loaded & ${rowsToClear.length} posted item(s) cleared ('x', no green)!`;
             } else {
                 dropText.innerText = extractedAmount ? `✅ Loaded Overall Balance: $${extractedAmount}` : "⚠️ Scan complete.";
             }
