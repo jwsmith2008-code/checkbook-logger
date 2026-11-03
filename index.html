@@ -126,7 +126,7 @@
     <!-- Focusable Paste & Upload Zone -->
     <div class="drop-zone" id="pasteZone" tabindex="0" onclick="document.getElementById('screenshotInput').click()">
         <span id="dropText" style="color: #b388ff; font-weight: bold; font-size: 13px;">📋 Click Here, then Press Ctrl+V (or Click to Browse)</span>
-        <span style="font-size: 11px; color: #aaa; display: block; margin-top: 2px;">Extracts Balance & Auto-Clears Posted Pending/Hold Items</span>
+        <span style="font-size: 11px; color: #aaa; display: block; margin-top: 2px;">Extracts Balance & Two-Way Reconciles Posted Items</span>
         <input type="file" id="screenshotInput" accept="image/*" style="display: none;">
     </div>
 
@@ -176,7 +176,7 @@
     async function processImageFile(file) {
         if (!file) return;
         const dropText = document.getElementById('dropText');
-        dropText.innerText = "⏳ Scanning screenshot & checking pending/hold status...";
+        dropText.innerText = "⏳ Scanning screenshot & checking posted status...";
 
         try {
             const result = await Tesseract.recognize(file, 'eng');
@@ -209,41 +209,27 @@
                 document.getElementById('bankBalanceInput').value = extractedAmount;
             }
 
-            // 2. Isolate Pending / Holds active region text
-            let pendingSectionText = "";
-            let capturing = false;
-            for (let i = 0; i < lines.length; i++) {
-                const l = lines[i].toLowerCase();
-                if (l.includes('holds') || l.includes('pending')) {
-                    capturing = true;
-                } else if (l.includes('posted') || l.includes('completed') || l.includes('recent transactions')) {
-                    if (capturing) {
-                        capturing = false;
-                        break;
-                    }
-                }
-                if (capturing) {
-                    pendingSectionText += lines[i] + "\n";
-                }
-            }
-            // Fallback: if section parser didn't trigger boundaries, use full text
-            if (pendingSectionText.trim().length < 5) {
-                pendingSectionText = text;
-            }
+            // 2. Two-Way OCR Reconciliation: 
+            // Split text roughly into pending/holds vs posted sections if possible, 
+            // or check if an item has moved from pending to posted (present in posted history, gone from active holds/pending).
+            const postedSectionIndex = text.toLowerCase().indexOf('posted');
+            const pendingSectionText = postedSectionIndex !== -1 ? text.substring(0, postedSectionIndex) : text;
+            const postedSectionText = postedSectionIndex !== -1 ? text.substring(postedSectionIndex) : text;
 
-            // 3. Auto-Clear items that left pending/holds and posted
             const rowsToClear = [];
             allEntries.forEach(item => {
                 const isPending = !item.status || item.status.toLowerCase() !== 'x';
                 if (isPending) {
                     const amtStr = parseFloat(item.amount).toFixed(2);
-                    const payeeSnippet = item.paye.substring(0, 5).toLowerCase(); // Check first few letters of payee
-                    
-                    // If the item was pending in our sheet, but its amount or name is NO LONGER in the active pending/holds text, it posted!
-                    const amountInPending = pendingSectionText.includes(amtStr);
-                    const nameInPending = pendingSectionText.toLowerCase().includes(payeeSnippet);
+                    const payeeSnippet = item.paye.substring(0, 5).toLowerCase(); // first few letters of payee
 
-                    if (!amountInPending && !nameInPending) {
+                    // Condition to auto-clear: 
+                    // It was in our pending sheet, but is NOW found in the 'posted' section 
+                    // OR has completely vanished from the active holds/pending section while appearing in posted history.
+                    const isinPosted = postedSectionText.includes(amtStr) || postedSectionText.toLowerCase().includes(payeeSnippet);
+                    const isGoneFromPending = !pendingSectionText.includes(amtStr);
+
+                    if (isinPosted || (isGoneFromPending && text.includes(amtStr) === false)) {
                         rowsToClear.push(item.rowIndex);
                     }
                 }
@@ -254,7 +240,7 @@
                     method: 'POST',
                     body: JSON.stringify({ action: 'batchClear', rowIndices: rowsToClear })
                 });
-                dropText.innerText = `✅ Balance loaded & ${rowsToClear.length} posted item(s) auto-cleared!`;
+                dropText.innerText = `✅ Balance loaded & ${rowsToClear.length} item(s) moved to posted ('x')!`;
             } else {
                 dropText.innerText = extractedAmount ? `✅ Loaded Overall Balance: $${extractedAmount}` : "⚠️ Scan complete.";
             }
