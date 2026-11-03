@@ -4,6 +4,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Morning Checkbook</title>
+    <!-- Tesseract OCR Library for local screenshot scanning -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/tesseract.js/4.0.2/tesseract.min.js"></script>
     <style>
         body {
             background-color: #121212;
@@ -121,8 +123,8 @@
 
     <!-- Screenshot Drop Zone -->
     <div class="drop-zone" onclick="document.getElementById('screenshotInput').click()">
-        <span style="color: #b388ff; font-weight: bold; font-size: 13px;">📸 Drop / Select Bank Screenshot</span>
-        <span style="font-size: 11px; color: #aaa; display: block; margin-top: 2px;">Works on iPad & PC</span>
+        <span id="dropText" style="color: #b388ff; font-weight: bold; font-size: 13px;">📸 Drop / Select Bank Screenshot</span>
+        <span style="font-size: 11px; color: #aaa; display: block; margin-top: 2px;">Extracts Overall Balance automatically</span>
         <input type="file" id="screenshotInput" accept="image/*" style="display: none;">
     </div>
 
@@ -135,7 +137,7 @@
     <!-- Answer 1: Need to Transfer Funds? -->
     <div class="card">
         <div class="card-title">1. Do I Need to Transfer Money?</div>
-        <div class="card-value" id="transferDisplay" style="font-size: 15px; color: #81c784;">Enter bank balance below to check...</div>
+        <div class="card-value" id="transferDisplay" style="font-size: 15px; color: #81c784;">Drop screenshot above to check...</div>
     </div>
 
     <!-- Answer 2: Is My Checkbook Balanced? -->
@@ -143,13 +145,13 @@
         <div class="card-title">2. Is My Checkbook Balanced?</div>
         <div style="margin-bottom: 8px; margin-top: 5px;">
             <label style="font-size: 11px; color: #aaa;">Members 1st Overall Bank Balance ($)</label>
-            <input type="number" step="0.01" id="bankBalanceInput" placeholder="0.00">
+            <input type="number" step="0.01" id="bankBalanceInput" placeholder="Auto-populated from screenshot">
         </div>
         <input type="hidden" id="latestSheetBalanceInput">
         <input type="hidden" id="pendingFloatInput">
         
         <div id="verifyStatusBox" class="status-box">
-            Enter bank balance to verify
+            Drop screenshot to verify overall balance
         </div>
 
         <button type="button" id="balanceBtn" style="margin-top: 10px; background: #81c784; color: #121212; font-weight: bold; display: none;">Certify & Mark Balanced</button>
@@ -169,12 +171,62 @@
     const WEB_APP_URL = "https://script.google.com/macros/s/AKfycbxMD7Pnri1ZQZx-gZ56IP1xox56jKaeroV9jSpnoU1TXNHZEYvVOgVhLTLlXhle4Ihu/exec";
     let allEntries = [];
 
-    document.getElementById('screenshotInput').addEventListener('change', function(e) {
+    // Screenshot OCR Handler targeting Overall Balance specifically
+    document.getElementById('screenshotInput').addEventListener('change', async function(e) {
         const file = e.target.files[0];
-        if (file) {
-            alert(`Screenshot "${file.name}" selected.`);
-            e.target.value = '';
+        if (!file) return;
+
+        const dropText = document.getElementById('dropText');
+        dropText.innerText = "⏳ Scanning screenshot for Overall Balance...";
+
+        try {
+            const result = await Tesseract.recognize(file, 'eng', {
+                logger: m => console.log(m)
+            });
+            
+            const text = result.data.text;
+            console.log("OCR Extracted Text:", text);
+
+            // Look for 'Overall Balance' label or fall back safely, grabbing the matching dollar amount
+            let extractedAmount = null;
+            const lines = text.split('\n');
+            
+            for (let i = 0; i < lines.length; i++) {
+                const line = lines[i].toLowerCase();
+                if (line.includes('overall') || line.includes('ledger') || line.includes('balance')) {
+                    // Check this line and next line for a dollar amount
+                    const combined = (lines[i] + ' ' + (lines[i+1] || '')).match(/\$?\d{1,3}(?:,\d{3})*\.\d{2}/);
+                    if (combined) {
+                        extractedAmount = combined[0].replace('$', '').replace(/,/g, '');
+                        break;
+                    }
+                }
+            }
+
+            // Fallback: if 'overall' label wasn't explicitly caught by OCR, grab the second dollar amount found (skip header available balance)
+            if (!extractedAmount) {
+                const allAmounts = text.match(/\$\d{1,3}(?:,\d{3})*\.\d{2}/g);
+                if (allAmounts && allAmounts.length > 1) {
+                    extractedAmount = allAmounts[1].replace('$', '').replace(/,/g, ''); // usually 2nd amount is overall
+                } else if (allAmounts && allAmounts.length === 1) {
+                    extractedAmount = allAmounts[0].replace('$', '').replace(/,/g, '');
+                }
+            }
+
+            if (extractedAmount) {
+                document.getElementById('bankBalanceInput').value = extractedAmount;
+                dropText.innerText = `✅ Loaded Overall Balance: $${extractedAmount}`;
+                checkBalanceMath();
+            } else {
+                dropText.innerText = "⚠️ Could not auto-detect. Type balance below.";
+            }
+
+        } catch (err) {
+            console.error("OCR Error:", err);
+            dropText.innerText = "❌ Scan failed. Try another screenshot.";
         }
+
+        e.target.value = '';
     });
 
     async function loadLedger() {
@@ -220,8 +272,8 @@
         const balanceBtn = document.getElementById('balanceBtn');
 
         if (isNaN(bankBal)) {
-            statusBox.innerHTML = 'Enter bank balance to verify';
-            transferDisplay.innerText = 'Enter bank balance below to check...';
+            statusBox.innerHTML = 'Drop screenshot to verify overall balance';
+            transferDisplay.innerText = 'Drop screenshot above to check...';
             balanceBtn.style.display = 'none';
             return;
         }
