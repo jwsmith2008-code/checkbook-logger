@@ -124,7 +124,7 @@
     <!-- Screenshot Upload / File Picker Zone -->
     <div class="drop-zone" onclick="document.getElementById('screenshotInput').click()">
         <span id="dropText" style="color: #b388ff; font-weight: bold; font-size: 13px;">📸 Click Here to Select Bank Screenshot</span>
-        <span style="font-size: 11px; color: #aaa; display: block; margin-top: 2px;">Extracts Overall Balance automatically</span>
+        <span style="font-size: 11px; color: #aaa; display: block; margin-top: 2px;">Extracts Overall Balance & Auto-Clears Posted Items</span>
         <input type="file" id="screenshotInput" accept="image/*" style="display: none;">
     </div>
 
@@ -171,23 +171,20 @@
     const WEB_APP_URL = "https://script.google.com/macros/s/AKfycbxMD7Pnri1ZQZx-gZ56IP1xox56jKaeroV9jSpnoU1TXNHZEYvVOgVhLTLlXhle4Ihu/exec";
     let allEntries = [];
 
-    // Screenshot OCR Handler targeting Overall Balance specifically
+    // Screenshot OCR Handler targeting Overall Balance & Auto-Reconciling Posted Items
     async function processImageFile(file) {
         if (!file) return;
         const dropText = document.getElementById('dropText');
-        dropText.innerText = "⏳ Scanning screenshot for Overall Balance...";
+        dropText.innerText = "⏳ Scanning screenshot & reconciling posted items...";
 
         try {
-            const result = await Tesseract.recognize(file, 'eng', {
-                logger: m => console.log(m)
-            });
-            
+            const result = await Tesseract.recognize(file, 'eng');
             const text = result.data.text;
             console.log("OCR Extracted Text:", text);
 
+            // 1. Extract Overall Balance
             let extractedAmount = null;
             const lines = text.split('\n');
-            
             for (let i = 0; i < lines.length; i++) {
                 const line = lines[i].toLowerCase();
                 if (line.includes('overall') || line.includes('ledger') || line.includes('balance')) {
@@ -198,7 +195,6 @@
                     }
                 }
             }
-
             if (!extractedAmount) {
                 const allAmounts = text.match(/\$\d{1,3}(?:,\d{3})*\.\d{2}/g);
                 if (allAmounts && allAmounts.length > 1) {
@@ -210,12 +206,33 @@
 
             if (extractedAmount) {
                 document.getElementById('bankBalanceInput').value = extractedAmount;
-                dropText.innerText = `✅ Loaded Overall Balance: $${extractedAmount}`;
-                checkBalanceMath();
-            } else {
-                dropText.innerText = "⚠️ Could not auto-detect. Type balance below.";
             }
 
+            // 2. Auto-Reconcile / Match Pending Items against OCR text
+            const rowsToClear = [];
+            allEntries.forEach(item => {
+                const isPending = !item.status || item.status.toLowerCase() !== 'x';
+                if (isPending) {
+                    const amtStr = parseFloat(item.amount).toFixed(2);
+                    const payeeClean = item.paye.toLowerCase().trim();
+                    if (text.includes(amtStr) && (text.toLowerCase().includes(payeeClean) || payeeClean.length < 3)) {
+                        rowsToClear.push(item.rowIndex);
+                    }
+                }
+            });
+
+            // 3. Send batch clear request to Google Sheet if matches found
+            if (rowsToClear.length > 0) {
+                await fetch(WEB_APP_URL, {
+                    method: 'POST',
+                    body: JSON.stringify({ action: 'batchClear', rowIndices: rowsToClear })
+                });
+                dropText.innerText = `✅ Balance loaded & ${rowsToClear.length} item(s) auto-cleared!`;
+            } else {
+                dropText.innerText = extractedAmount ? `✅ Loaded Overall Balance: $${extractedAmount}` : "⚠️ Scan complete.";
+            }
+
+            loadLedger(); // Refresh view
         } catch (err) {
             console.error("OCR Error:", err);
             dropText.innerText = "❌ Scan failed. Try another screenshot.";
