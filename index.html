@@ -245,7 +245,6 @@
         }
     });
 
-    // Dedicated paste listener directly on the paste zone element
     document.getElementById('pasteZone').addEventListener('paste', function(e) {
         const items = e.clipboardData.items;
         for (let i = 0; i < items.length; i++) {
@@ -258,7 +257,6 @@
         }
     });
 
-    // Fallback global window paste listener
     window.addEventListener('paste', function(e) {
         const items = e.clipboardData.items;
         for (let i = 0; i < items.length; i++) {
@@ -307,7 +305,7 @@
     function checkBalanceMath() {
         const bankBal = parseFloat(document.getElementById('bankBalanceInput').value);
         const sheetBal = parseFloat(document.getElementById('latestSheetBalanceInput').value);
-        const floatBal = parseFloat(document.getElementById('pendingFloatInput').value);
+        const floatBal = parseFloat(document.getElementById('pendingFloatInput').value) || 0;
         const statusBox = document.getElementById('verifyStatusBox');
         const transferDisplay = document.getElementById('transferDisplay');
         const balanceBtn = document.getElementById('balanceBtn');
@@ -320,11 +318,11 @@
         }
 
         const expectedSheet = bankBal - floatBal;
-        const diff = Math.abs(expectedSheet - sheetBal);
+        const diff = Math.abs(bankBal - sheetBal);
 
         balanceBtn.style.display = 'block';
 
-        if (diff < 0.02) {
+        if (Math.abs(expectedSheet - sheetBal) < 0.02 || diff < 0.02) {
             statusBox.style.background = 'rgba(46, 125, 50, 0.3)';
             statusBox.style.color = '#81c784';
             statusBox.innerHTML = '✅ <strong>Balanced! Ready to certify.</strong>';
@@ -333,7 +331,7 @@
         } else {
             statusBox.style.background = 'rgba(198, 40, 40, 0.3)';
             statusBox.style.color = '#ef5350';
-            statusBox.innerHTML = `⚠️ Variance: Off by $${diff.toFixed(2)}`;
+            statusBox.innerHTML = `⚠️ Variance: Off by $${Math.min(Math.abs(expectedSheet - sheetBal), diff).toFixed(2)}`;
             transferDisplay.style.color = '#ef5350';
             transferDisplay.innerText = `⚠️ Check upcoming bills (Expected sheet: $${expectedSheet.toFixed(2)})`;
         }
