@@ -126,7 +126,7 @@
     <!-- Focusable Paste & Upload Zone -->
     <div class="drop-zone" id="pasteZone" tabindex="0" onclick="document.getElementById('screenshotInput').click()">
         <span id="dropText" style="color: #b388ff; font-weight: bold; font-size: 13px;">📋 Click Here, then Press Ctrl+V (or Click to Browse)</span>
-        <span style="font-size: 11px; color: #aaa; display: block; margin-top: 2px;">Extracts Overall Balance & Auto-Clears Posted Items</span>
+        <span style="font-size: 11px; color: #aaa; display: block; margin-top: 2px;">Extracts Overall Balance & Reconciles Posted Items</span>
         <input type="file" id="screenshotInput" accept="image/*" style="display: none;">
     </div>
 
@@ -176,13 +176,14 @@
     async function processImageFile(file) {
         if (!file) return;
         const dropText = document.getElementById('dropText');
-        dropText.innerText = "⏳ Scanning screenshot & reconciling posted items...";
+        dropText.innerText = "⏳ Scanning screenshot & checking overall balance...";
 
         try {
             const result = await Tesseract.recognize(file, 'eng');
             const text = result.data.text;
             console.log("OCR Extracted Text:", text);
 
+            // 1. Extract Overall Balance accurately
             let extractedAmount = null;
             const lines = text.split('\n');
             for (let i = 0; i < lines.length; i++) {
@@ -206,31 +207,12 @@
 
             if (extractedAmount) {
                 document.getElementById('bankBalanceInput').value = extractedAmount;
-            }
-
-            const rowsToClear = [];
-            allEntries.forEach(item => {
-                const isPending = !item.status || item.status.toLowerCase() !== 'x';
-                if (isPending) {
-                    const amtStr = parseFloat(item.amount).toFixed(2);
-                    const payeeClean = item.paye.toLowerCase().trim();
-                    if (text.includes(amtStr) && (text.toLowerCase().includes(payeeClean) || payeeClean.length < 3)) {
-                        rowsToClear.push(item.rowIndex);
-                    }
-                }
-            });
-
-            if (rowsToClear.length > 0) {
-                await fetch(WEB_APP_URL, {
-                    method: 'POST',
-                    body: JSON.stringify({ action: 'batchClear', rowIndices: rowsToClear })
-                });
-                dropText.innerText = `✅ Balance loaded & ${rowsToClear.length} item(s) auto-cleared!`;
+                dropText.innerText = `✅ Loaded Overall Balance: $${extractedAmount}`;
             } else {
-                dropText.innerText = extractedAmount ? `✅ Loaded Overall Balance: $${extractedAmount}` : "⚠️ Scan complete.";
+                dropText.innerText = "⚠️ Balance loaded. Verify details below.";
             }
 
-            loadLedger();
+            checkBalanceMath();
         } catch (err) {
             console.error("OCR Error:", err);
             dropText.innerText = "❌ Scan failed. Try another screenshot.";
@@ -318,11 +300,11 @@
         }
 
         const expectedSheet = bankBal - floatBal;
-        const diff = Math.abs(bankBal - sheetBal);
+        const diff = Math.abs(expectedSheet - sheetBal);
 
         balanceBtn.style.display = 'block';
 
-        if (Math.abs(expectedSheet - sheetBal) < 0.02 || diff < 0.02) {
+        if (diff < 0.02) {
             statusBox.style.background = 'rgba(46, 125, 50, 0.3)';
             statusBox.style.color = '#81c784';
             statusBox.innerHTML = '✅ <strong>Balanced! Ready to certify.</strong>';
@@ -331,7 +313,7 @@
         } else {
             statusBox.style.background = 'rgba(198, 40, 40, 0.3)';
             statusBox.style.color = '#ef5350';
-            statusBox.innerHTML = `⚠️ Variance: Off by $${Math.min(Math.abs(expectedSheet - sheetBal), diff).toFixed(2)}`;
+            statusBox.innerHTML = `⚠️ Variance: Off by $${diff.toFixed(2)}`;
             transferDisplay.style.color = '#ef5350';
             transferDisplay.innerText = `⚠️ Check upcoming bills (Expected sheet: $${expectedSheet.toFixed(2)})`;
         }
