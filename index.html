@@ -110,6 +110,19 @@
             background: #2a2a2a;
             color: #aaa;
         }
+        .drop-zone {
+            border: 2px dashed #b388ff;
+            background: rgba(179, 136, 255, 0.05);
+            padding: 20px;
+            text-align: center;
+            border-radius: 8px;
+            cursor: pointer;
+            margin-bottom: 20px;
+            transition: background 0.2s;
+        }
+        .drop-zone:hover {
+            background: rgba(179, 136, 255, 0.1);
+        }
     </style>
 </head>
 <body>
@@ -117,10 +130,11 @@
 <div class="container">
     <h2>Morning Checkbook</h2>
 
-    <!-- Smart Paste Box -->
-    <div style="background: #252525; padding: 12px; border-radius: 6px; margin-bottom: 15px; border: 1px dashed #666;">
-        <label style="color: #a5d6a7; margin-bottom: 4px;">⚡ Quick Smart-Paste (Paste bank line here)</label>
-        <textarea id="quickPasteInput" placeholder="Paste bank row (e.g. 11/03/2026  SHEETZ  -$25.83)..." style="height: 45px; font-family: monospace; font-size: 12px;"></textarea>
+    <!-- Screenshot Upload Drop Zone -->
+    <div class="drop-zone" onclick="document.getElementById('screenshotInput').click()">
+        <span style="color: #b388ff; font-weight: bold; display: block; margin-bottom: 4px;">📷 Drop or Select Bank Screenshot</span>
+        <span style="font-size: 12px; color: #aaa;">Works on iPad and PC (PNG, JPG)</span>
+        <input type="file" id="screenshotInput" accept="image/*" style="display: none;">
     </div>
 
     <form id="checkbookForm">
@@ -209,47 +223,15 @@
 
     let allEntries = [];
 
-    // Safe Smart-Paste listener
-    const pasteBox = document.getElementById('quickPasteInput');
-    if (pasteBox) {
-        pasteBox.addEventListener('input', function(e) {
-            const text = e.target.value;
-            const matchDate = text.match(/(\d{2}\/\d{2}(\/\d{4})?)/);
-            const matchAmount = text.match(/\$?-?\d+\.\d{2}/);
-            
-            if (matchDate && matchAmount) {
-                let dateStr = matchDate[1];
-                if (!dateStr.includes('2026') && !dateStr.includes('2025')) {
-                    dateStr += '/' + new Date().getFullYear();
-                }
-                const parts = dateStr.split('/');
-                if (parts.length === 3) {
-                    const dField = document.getElementById('date');
-                    if (dField) dField.value = `${parts[2]}-${parts[0].padStart(2, '0')}-${parts[1].padStart(2, '0')}`;
-                }
-
-                const rawAmtStr = matchAmount[0];
-                const cleanAmt = rawAmtStr.replace('$', '').replace('-', '');
-                const amtField = document.getElementById('amount');
-                if (amtField) amtField.value = cleanAmt;
-                
-                const typeField = document.getElementById('type');
-                if (typeField) {
-                    if (rawAmtStr.includes('-') || text.toLowerCase().includes('withdrawal')) {
-                        typeField.value = 'withdrawal';
-                    } else {
-                        typeField.value = 'deposit';
-                    }
-                }
-
-                let cleanedPayee = text.replace(matchDate[0], '').replace(rawAmtStr, '').trim();
-                cleanedPayee = cleanedPayee.replace(/^[-–—\s]+|[-–—\s]+$/g, '');
-                const payeeField = document.getElementById('payee');
-                if (cleanedPayee && payeeField) {
-                    payeeField.value = cleanedPayee;
-                }
-                
-                setTimeout(() => { e.target.value = ''; }, 300);
+    // Screenshot/Image handler placeholder
+    const screenshotInput = document.getElementById('screenshotInput');
+    if (screenshotInput) {
+        screenshotInput.addEventListener('change', function(e) {
+            const file = e.target.files[0];
+            if (file) {
+                alert(`Image selected: "${file.name}". Screenshot parsing ready for configuration!`);
+                // Reset file picker
+                e.target.value = '';
             }
         });
     }
