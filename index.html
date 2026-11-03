@@ -126,7 +126,7 @@
     <!-- Focusable Paste & Upload Zone -->
     <div class="drop-zone" id="pasteZone" tabindex="0" onclick="document.getElementById('screenshotInput').click()">
         <span id="dropText" style="color: #b388ff; font-weight: bold; font-size: 13px;">📋 Click Here, then Press Ctrl+V (or Click to Browse)</span>
-        <span style="font-size: 11px; color: #aaa; display: block; margin-top: 2px;">Extracts Balance & Two-Way Reconciles Posted Items</span>
+        <span style="font-size: 11px; color: #aaa; display: block; margin-top: 2px;">Extracts Overall Balance Automatically</span>
         <input type="file" id="screenshotInput" accept="image/*" style="display: none;">
     </div>
 
@@ -176,14 +176,13 @@
     async function processImageFile(file) {
         if (!file) return;
         const dropText = document.getElementById('dropText');
-        dropText.innerText = "⏳ Scanning screenshot & checking posted status...";
+        dropText.innerText = "⏳ Scanning screenshot for Overall Balance...";
 
         try {
             const result = await Tesseract.recognize(file, 'eng');
             const text = result.data.text;
             console.log("OCR Extracted Text:", text);
 
-            // 1. Extract Overall Balance
             let extractedAmount = null;
             const lines = text.split('\n');
             for (let i = 0; i < lines.length; i++) {
@@ -207,45 +206,12 @@
 
             if (extractedAmount) {
                 document.getElementById('bankBalanceInput').value = extractedAmount;
-            }
-
-            // 2. Two-Way OCR Reconciliation: 
-            // Split text roughly into pending/holds vs posted sections if possible, 
-            // or check if an item has moved from pending to posted (present in posted history, gone from active holds/pending).
-            const postedSectionIndex = text.toLowerCase().indexOf('posted');
-            const pendingSectionText = postedSectionIndex !== -1 ? text.substring(0, postedSectionIndex) : text;
-            const postedSectionText = postedSectionIndex !== -1 ? text.substring(postedSectionIndex) : text;
-
-            const rowsToClear = [];
-            allEntries.forEach(item => {
-                const isPending = !item.status || item.status.toLowerCase() !== 'x';
-                if (isPending) {
-                    const amtStr = parseFloat(item.amount).toFixed(2);
-                    const payeeSnippet = item.paye.substring(0, 5).toLowerCase(); // first few letters of payee
-
-                    // Condition to auto-clear: 
-                    // It was in our pending sheet, but is NOW found in the 'posted' section 
-                    // OR has completely vanished from the active holds/pending section while appearing in posted history.
-                    const isinPosted = postedSectionText.includes(amtStr) || postedSectionText.toLowerCase().includes(payeeSnippet);
-                    const isGoneFromPending = !pendingSectionText.includes(amtStr);
-
-                    if (isinPosted || (isGoneFromPending && text.includes(amtStr) === false)) {
-                        rowsToClear.push(item.rowIndex);
-                    }
-                }
-            });
-
-            if (rowsToClear.length > 0) {
-                await fetch(WEB_APP_URL, {
-                    method: 'POST',
-                    body: JSON.stringify({ action: 'batchClear', rowIndices: rowsToClear })
-                });
-                dropText.innerText = `✅ Balance loaded & ${rowsToClear.length} item(s) moved to posted ('x')!`;
+                dropText.innerText = `✅ Loaded Overall Balance: $${extractedAmount}`;
             } else {
-                dropText.innerText = extractedAmount ? `✅ Loaded Overall Balance: $${extractedAmount}` : "⚠️ Scan complete.";
+                dropText.innerText = "⚠️ Could not auto-detect balance. Type below.";
             }
 
-            loadLedger();
+            checkBalanceMath();
         } catch (err) {
             console.error("OCR Error:", err);
             dropText.innerText = "❌ Scan failed. Try another screenshot.";
